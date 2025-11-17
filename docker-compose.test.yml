@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  radicale:
+    build:
+      context: ./docker/radicale
+      dockerfile: Dockerfile
+    container_name: twcaldav-radicale-test
+    ports:
+      - "5232:5232"
+    volumes:
+      - radicale-data:/data
+    networks:
+      - twcaldav-test
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5232').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: docker/taskwarrior/Dockerfile
+    container_name: twcaldav-test-runner
+    depends_on:
+      radicale:
+        condition: service_healthy
+    environment:
+      - CALDAV_URL=http://radicale:5232/test-user/
+      - CALDAV_USERNAME=test-user
+      - CALDAV_PASSWORD=test-pass
+      - CALDAV_CALENDAR_ID=test-calendar
+      - TW_PROJECT=test
+      - TASKDATA=/taskdata
+    volumes:
+      - taskdata:/taskdata
+      - ./tests:/app/tests
+      - ./src:/app/src
+    networks:
+      - twcaldav-test
+    command: >
+      bash -c "
+        echo 'Waiting for Radicale to be ready...' &&
+        sleep 5 &&
+        echo 'Setting up test data...' &&
+        bash /app/scripts/setup-radicale-test-data.sh &&
+        echo 'Running integration tests...' &&
+        uv run python /app/tests/integration/test_e2e.py
+      "
+
+networks:
+  twcaldav-test:
+    driver: bridge
+
+volumes:
+  radicale-data:
+  taskdata:

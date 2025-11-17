@@ -8,3 +8,18 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.log
+
+# Docker volumes
+.docker-volumes/
+
+# Temporary test data
+/tmp/taskwarrior-test/
+/tmp/taskwarrior-ci/
+/tmp/twcaldav-ci-config.toml
