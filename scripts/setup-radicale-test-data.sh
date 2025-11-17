@@ -15,20 +15,34 @@ echo "User: $USERNAME"
 
 # Wait for Radicale to be ready
 echo "Waiting for Radicale to be ready..."
+BASE_URL=$(echo "$RADICALE_URL" | sed 's|/test-user/||')
+echo "Base URL: $BASE_URL"
+
 MAX_RETRIES=30
 RETRY=0
-until curl -sf "$RADICALE_URL" > /dev/null 2>&1 || [ $RETRY -eq $MAX_RETRIES ]; do
-  echo "  Attempt $((RETRY + 1))/$MAX_RETRIES..."
-  sleep 2
+while [ $RETRY -lt $MAX_RETRIES ]; do
   RETRY=$((RETRY + 1))
+  echo "  Attempt $RETRY/$MAX_RETRIES..."
+  
+  # Try to connect to base URL with auth
+  if curl -sf -u "$USERNAME:$PASSWORD" "$BASE_URL" > /dev/null 2>&1; then
+    echo "✓ Radicale is ready!"
+    break
+  fi
+  
+  # Show more details on last attempt
+  if [ $RETRY -eq $MAX_RETRIES ]; then
+    echo "ERROR: Radicale not ready after $MAX_RETRIES attempts"
+    echo "Trying one more time with verbose output:"
+    curl -v -u "$USERNAME:$PASSWORD" "$BASE_URL" 2>&1 || true
+    echo ""
+    echo "Also trying without auth:"
+    curl -v "$BASE_URL" 2>&1 || true
+    exit 1
+  fi
+  
+  sleep 2
 done
-
-if [ $RETRY -eq $MAX_RETRIES ]; then
-  echo "ERROR: Radicale not ready after $MAX_RETRIES attempts"
-  exit 1
-fi
-
-echo "✓ Radicale is ready!"
 
 # Create a test calendar collection using CalDAV MKCALENDAR
 CALENDAR_URL="${RADICALE_URL}${CALENDAR_NAME}/"
