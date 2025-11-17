@@ -105,6 +105,67 @@ Multiple mappings are supported. Each TaskWarrior project syncs to its mapped ca
 delete_tasks = false  # Enable deletion sync (careful!)
 ```
 
+### Security Best Practices
+
+1. **Protect Configuration File**: Ensure config file has restricted permissions:
+   ```bash
+   chmod 600 ~/.config/twcaldav/config.toml
+   ```
+
+2. **Use App Passwords**: Many CalDAV servers (Nextcloud, etc.) support app-specific passwords. Use them instead of your main account password.
+
+3. **HTTPS Only**: Always use HTTPS URLs for CalDAV servers to encrypt credentials in transit.
+
+4. **Backup First**: Before first sync, backup your TaskWarrior data:
+   ```bash
+   cp -r ~/.task ~/.task.backup
+   ```
+
+5. **Test with Dry Run**: Always test with `--dry-run` first:
+   ```bash
+   uv run twcaldav --dry-run -v
+   ```
+
+### Automated Sync (Cron Job)
+
+To sync automatically every hour:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add this line (adjust path to uv and project):
+0 * * * * cd /path/to/twcaldav_py && /path/to/uv run twcaldav >> /var/log/twcaldav.log 2>&1
+```
+
+Or use a systemd timer for more control:
+
+```ini
+# ~/.config/systemd/user/twcaldav.service
+[Unit]
+Description=TaskWarrior CalDAV Sync
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/uv run --directory /path/to/twcaldav_py twcaldav
+
+# ~/.config/systemd/user/twcaldav.timer
+[Unit]
+Description=Run TaskWarrior CalDAV Sync hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable with:
+```bash
+systemctl --user enable --now twcaldav.timer
+```
+
 ## Field Mapping
 
 | TaskWarrior | CalDAV |
