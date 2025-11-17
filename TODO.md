@@ -61,53 +61,60 @@ Status Legend:
 
 ---
 
-## Phase 2: TaskWarrior Integration
+## Phase 2: TaskWarrior Integration ✓ COMPLETED
 
 ### TaskWarrior Wrapper Module
-- [ ] Create `src/twcaldav/taskwarrior.py` module
-- [ ] Implement subprocess wrapper for `task` command
-- [ ] Add error handling for missing `task` binary
-- [ ] Add error handling for invalid task commands
+- [x] Create `src/twcaldav/taskwarrior.py` module (362 lines)
+- [x] Implement subprocess wrapper for `task` command
+- [x] Add error handling for missing `task` binary
+- [x] Add error handling for invalid task commands
+- [x] Support custom TASKDATA directory via environment variable
 
 ### Task Reading
-- [ ] Implement `task export` JSON parsing
-- [ ] Implement filter by project
-- [ ] Implement filter by status (pending, completed, deleted)
-- [ ] Parse all relevant task fields (uuid, description, due, priority, etc.)
-- [ ] Parse task annotations
-- [ ] Handle empty result sets
+- [x] Implement `task export` JSON parsing
+- [x] Implement filter by project
+- [x] Implement filter by status (pending, completed, deleted)
+- [x] Parse all relevant task fields (uuid, description, due, priority, etc.)
+- [x] Parse task annotations
+- [x] Handle empty result sets
+- [x] Proper datetime handling with timezone support
 
 ### Task Creation
-- [ ] Implement task creation via `task import`
-- [ ] Support assigning custom UUID during creation
-- [ ] Map internal fields to TaskWarrior format
-- [ ] Handle task creation errors
+- [x] Implement task creation via `task import`
+- [x] Support assigning custom UUID during creation
+- [x] Map internal fields to TaskWarrior format
+- [x] Handle task creation errors
+- [x] Task dataclass with from_dict/to_dict methods
 
 ### Task Modification
-- [ ] Implement task modification via `task <uuid> modify`
-- [ ] Update description, due date, priority, etc.
-- [ ] Update tags and project
-- [ ] Handle modification errors
+- [x] Implement task modification via `task <uuid> modify`
+- [x] Update description, due date, priority, etc.
+- [x] Update tags and project
+- [x] Handle modification errors
+- [x] Support removing attributes (value=None)
 
 ### Task Deletion
-- [ ] Implement task deletion via `task <uuid> delete`
-- [ ] Add confirmation bypass for programmatic deletion
-- [ ] Handle deletion errors
+- [x] Implement task deletion via `task <uuid> delete`
+- [x] Add confirmation bypass for programmatic deletion (rc.confirmation=off)
+- [x] Handle deletion errors
 
 ### Annotation Handling
-- [ ] Parse existing annotations from task export
-- [ ] Add new annotations to tasks
-- [ ] Preserve annotation timestamps
-- [ ] Format annotations consistently
+- [x] Parse existing annotations from task export
+- [x] Add new annotations to tasks
+- [x] Preserve annotation timestamps
+- [x] Format annotations consistently
 
 ### Testing - Phase 2
-- [ ] Test task export parsing
-- [ ] Test task filtering by project
-- [ ] Test task creation with custom UUID
-- [ ] Test task modification
-- [ ] Test task deletion
-- [ ] Test annotation parsing and adding
-- [ ] Test error handling for invalid operations
+- [x] Test task export parsing (23 tests total)
+- [x] Test task filtering by project
+- [x] Test task creation with custom UUID
+- [x] Test task modification
+- [x] Test task deletion
+- [x] Test annotation parsing and adding
+- [x] Test error handling for invalid operations
+- [x] Test Task dataclass serialization/deserialization
+- [x] All 23 tests passing
+- [x] 95% code coverage for taskwarrior.py
 
 ---
 
