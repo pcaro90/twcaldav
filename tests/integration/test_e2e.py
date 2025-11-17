@@ -458,7 +458,7 @@ def test_caldav_to_tw_modify():
                 if component.name == "VTODO":
                     summary = str(component.get("summary", ""))
                     if "CalDAV test todo 1" in summary:
-                        todo_to_modify = (todo, component)
+                        todo_to_modify = todo
                         break
             if todo_to_modify:
                 break
@@ -470,26 +470,35 @@ def test_caldav_to_tw_modify():
         print_error("Could not find 'CalDAV test todo 1' to modify")
         return False
 
-    todo, component = todo_to_modify
-    original_summary = str(component.get("summary", ""))
-    print_info(f"Modifying CalDAV todo: {original_summary}")
-
-    # Modify the todo in CalDAV
+    # Get the current data and modify it
     try:
-        component["summary"] = f"{original_summary} [MODIFIED IN CALDAV]"
-        component["priority"] = 3  # Change priority
+        ical = Calendar.from_ical(todo_to_modify.data)
+        original_summary = None
 
-        # Save the modified todo
-        ical = Calendar.from_ical(todo.data)
-        for comp in ical.walk():
-            if comp.name == "VTODO":
-                comp["summary"] = component["summary"]
-                comp["priority"] = component["priority"]
+        for component in ical.walk():
+            if component.name == "VTODO":
+                original_summary = str(component.get("summary", ""))
+                print_info(f"Modifying CalDAV todo: {original_summary}")
 
-        todo.save(ical.to_ical())
-        print_success(f"Modified CalDAV todo: {component['summary']}")
+                # Modify the component
+                component["summary"] = f"{original_summary} [MODIFIED IN CALDAV]"
+                component["priority"] = 3  # Change priority
+                break
+
+        if not original_summary:
+            print_error("Could not find VTODO component")
+            return False
+
+        # Update the todo with modified data using the caldav library's method
+        todo_to_modify.data = ical.to_ical()
+        todo_to_modify.save()
+
+        print_success(f"Modified CalDAV todo: {original_summary} [MODIFIED IN CALDAV]")
     except Exception as e:
         print_error(f"Failed to modify CalDAV todo: {e}")
+        import traceback
+
+        traceback.print_exc()
         return False
 
     # Run sync
