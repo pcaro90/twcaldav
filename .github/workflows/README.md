@@ -7,7 +7,7 @@ This project uses automated integration testing in CI/CD pipelines with Docker c
 The CI/CD workflow runs three types of tests:
 
 1. **Lint** - Code quality checks with Ruff
-2. **Unit Tests** - Fast, isolated tests (114 tests)
+2. **Unit Tests** - Fast, isolated tests (118 tests)
 3. **Integration Tests** - Full end-to-end tests with real CalDAV server and TaskWarrior
 
 ## Architecture
@@ -175,7 +175,7 @@ To add new integration tests:
 
 ## Performance
 
-- Unit tests: ~0.3 seconds (114 tests)
+- Unit tests: ~0.3 seconds (118 tests)
 - Integration tests: ~30-60 seconds (depends on Docker startup)
 - Total CI runtime: ~2-3 minutes
 
