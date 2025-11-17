@@ -179,21 +179,21 @@ class CalDAVClient:
         """
         try:
             calendars = self.principal.calendars()
-            calendar_names = []
+            calendar_ids = []
             for cal in calendars:
                 name = cal.name
                 if name:
-                    calendar_names.append(name)
-            self.logger.debug(f"Found {len(calendar_names)} calendars")
-            return calendar_names
+                    calendar_ids.append(name)
+            self.logger.debug(f"Found {len(calendar_ids)} calendars")
+            return calendar_ids
         except Exception as e:
             raise CalDAVError(f"Failed to list calendars: {e}") from e
 
-    def get_calendar(self, name: str) -> Any:
-        """Get calendar by name.
+    def get_calendar(self, calendar_id: str) -> Any:
+        """Get calendar by ID.
 
         Args:
-            name: Calendar name.
+            calendar_id: Calendar ID (not the display name).
 
         Returns:
             Calendar object.
@@ -204,21 +204,23 @@ class CalDAVClient:
         try:
             calendars = self.principal.calendars()
             for cal in calendars:
-                if cal.name == name:
-                    self.logger.debug(f"Found calendar: {name}")
+                if cal.id == calendar_id:
+                    self.logger.debug(f"Found calendar with ID: {calendar_id}")
                     return cal
 
-            raise CalDAVError(f"Calendar not found: {name}")
+            raise CalDAVError(f"Calendar not found with ID: {calendar_id}")
         except CalDAVError:
             raise
         except Exception as e:
-            raise CalDAVError(f"Failed to get calendar '{name}': {e}") from e
+            raise CalDAVError(
+                f"Failed to get calendar with ID '{calendar_id}': {e}"
+            ) from e
 
-    def get_todos(self, calendar_name: str) -> list[VTodo]:
+    def get_todos(self, calendar_id: str) -> list[VTodo]:
         """Get all todos from a calendar.
 
         Args:
-            calendar_name: Name of calendar to query.
+            calendar_id: ID of calendar to query.
 
         Returns:
             List of VTodo objects.
@@ -227,7 +229,7 @@ class CalDAVClient:
             CalDAVError: If query fails.
         """
         try:
-            calendar = self.get_calendar(calendar_name)
+            calendar = self.get_calendar(calendar_id)
             todos = calendar.todos()
 
             vtodos = []
@@ -244,28 +246,28 @@ class CalDAVClient:
                     continue
 
             self.logger.debug(
-                f"Retrieved {len(vtodos)} todos from calendar '{calendar_name}'"
+                f"Retrieved {len(vtodos)} todos from calendar ID '{calendar_id}'"
             )
             return vtodos
         except CalDAVError:
             raise
         except Exception as e:
             raise CalDAVError(
-                f"Failed to get todos from calendar '{calendar_name}': {e}"
+                f"Failed to get todos from calendar ID '{calendar_id}': {e}"
             ) from e
 
-    def create_todo(self, calendar_name: str, vtodo: VTodo) -> None:
+    def create_todo(self, calendar_id: str, vtodo: VTodo) -> None:
         """Create a new todo in a calendar.
 
         Args:
-            calendar_name: Name of calendar.
+            calendar_id: ID of calendar.
             vtodo: VTodo object to create.
 
         Raises:
             CalDAVError: If creation fails.
         """
         try:
-            calendar = self.get_calendar(calendar_name)
+            calendar = self.get_calendar(calendar_id)
 
             # Create iCalendar
             cal = Calendar()
@@ -275,30 +277,28 @@ class CalDAVClient:
 
             ical_data = cal.to_ical()
 
-            self.logger.debug(
-                f"Creating todo in calendar '{calendar_name}': {vtodo.uid}"
-            )
+            self.logger.debug(f"Creating todo in calendar '{calendar_id}': {vtodo.uid}")
             calendar.save_todo(ical_data)
-            self.logger.info(f"Created todo {vtodo.uid} in calendar '{calendar_name}'")
+            self.logger.info(f"Created todo {vtodo.uid} in calendar '{calendar_id}'")
         except CalDAVError:
             raise
         except Exception as e:
             raise CalDAVError(
-                f"Failed to create todo in calendar '{calendar_name}': {e}"
+                f"Failed to create todo in calendar '{calendar_id}': {e}"
             ) from e
 
-    def update_todo(self, calendar_name: str, vtodo: VTodo) -> None:
+    def update_todo(self, calendar_id: str, vtodo: VTodo) -> None:
         """Update an existing todo.
 
         Args:
-            calendar_name: Name of calendar.
+            calendar_id: Name of calendar.
             vtodo: VTodo object with updated data.
 
         Raises:
             CalDAVError: If update fails.
         """
         try:
-            calendar = self.get_calendar(calendar_name)
+            calendar = self.get_calendar(calendar_id)
 
             # Find the existing todo by UID
             todos = calendar.todos()
@@ -318,7 +318,7 @@ class CalDAVClient:
                         todo.data = new_cal.to_ical()
                         todo.save()
                         self.logger.info(
-                            f"Updated todo {vtodo.uid} in calendar '{calendar_name}'"
+                            f"Updated todo {vtodo.uid} in calendar '{calendar_id}'"
                         )
                         return
 
@@ -327,21 +327,21 @@ class CalDAVClient:
             raise
         except Exception as e:
             raise CalDAVError(
-                f"Failed to update todo in calendar '{calendar_name}': {e}"
+                f"Failed to update todo in calendar '{calendar_id}': {e}"
             ) from e
 
-    def delete_todo(self, calendar_name: str, uid: str) -> None:
+    def delete_todo(self, calendar_id: str, uid: str) -> None:
         """Delete a todo by UID.
 
         Args:
-            calendar_name: Name of calendar.
+            calendar_id: Name of calendar.
             uid: UID of todo to delete.
 
         Raises:
             CalDAVError: If deletion fails.
         """
         try:
-            calendar = self.get_calendar(calendar_name)
+            calendar = self.get_calendar(calendar_id)
 
             # Find and delete the todo
             todos = calendar.todos()
@@ -351,7 +351,7 @@ class CalDAVClient:
                     if component.name == "VTODO" and str(component.get("UID")) == uid:
                         todo.delete()
                         self.logger.info(
-                            f"Deleted todo {uid} from calendar '{calendar_name}'"
+                            f"Deleted todo {uid} from calendar '{calendar_id}'"
                         )
                         return
 
@@ -360,14 +360,14 @@ class CalDAVClient:
             raise
         except Exception as e:
             raise CalDAVError(
-                f"Failed to delete todo from calendar '{calendar_name}': {e}"
+                f"Failed to delete todo from calendar '{calendar_id}': {e}"
             ) from e
 
-    def get_todo_by_uid(self, calendar_name: str, uid: str) -> VTodo | None:
+    def get_todo_by_uid(self, calendar_id: str, uid: str) -> VTodo | None:
         """Get a specific todo by UID.
 
         Args:
-            calendar_name: Name of calendar.
+            calendar_id: Name of calendar.
             uid: UID of todo.
 
         Returns:
@@ -376,19 +376,19 @@ class CalDAVClient:
         Raises:
             CalDAVError: If query fails.
         """
-        todos = self.get_todos(calendar_name)
+        todos = self.get_todos(calendar_id)
         for todo in todos:
             if todo.uid == uid:
                 return todo
         return None
 
     def get_todo_by_taskwarrior_uuid(
-        self, calendar_name: str, tw_uuid: str
+        self, calendar_id: str, tw_uuid: str
     ) -> VTodo | None:
         """Get a todo by TaskWarrior UUID.
 
         Args:
-            calendar_name: Name of calendar.
+            calendar_id: Name of calendar.
             tw_uuid: TaskWarrior UUID.
 
         Returns:
@@ -397,7 +397,7 @@ class CalDAVClient:
         Raises:
             CalDAVError: If query fails.
         """
-        todos = self.get_todos(calendar_name)
+        todos = self.get_todos(calendar_id)
         for todo in todos:
             if todo.taskwarrior_uuid == tw_uuid:
                 return todo

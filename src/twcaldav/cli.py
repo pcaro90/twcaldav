@@ -80,8 +80,11 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success, non-zero for failure).
     """
+    from .caldav_client import CalDAVClient
     from .config import Config
     from .logger import setup_logger
+    from .sync_engine import SyncEngine
+    from .taskwarrior import TaskWarrior
 
     args = parse_args(argv)
 
@@ -113,17 +116,59 @@ def main(argv: list[str] | None = None) -> int:
         delete_enabled = False
         logger.info("Deletion disabled via command-line flag")
 
+    # Update config with deletion override
+    config.sync.delete_tasks = delete_enabled
+
     logger.debug(f"CalDAV URL: {config.caldav.url}")
     logger.debug(f"CalDAV Username: {config.caldav.username}")
     logger.debug(f"Mapped projects: {config.get_mapped_projects()}")
     logger.debug(f"Mapped calendars: {config.get_mapped_calendars()}")
     logger.debug(f"Delete tasks: {delete_enabled}")
 
-    # TODO: Implement sync logic
-    logger.warning("Sync logic not yet implemented")
+    # Initialize clients
+    try:
+        logger.debug("Initializing TaskWarrior client")
+        tw = TaskWarrior()
 
-    logger.info("Sync completed successfully")
-    return 0
+        logger.debug("Connecting to CalDAV server")
+        caldav_client = CalDAVClient(
+            url=config.caldav.url,
+            username=config.caldav.username,
+            password=config.caldav.password,
+        )
+    except Exception as e:
+        logger.error(f"Failed to initialize clients: {e}")
+        return 1
+
+    # Initialize sync engine
+    logger.debug("Initializing sync engine")
+    sync_engine = SyncEngine(
+        config=config,
+        tw=tw,
+        caldav_client=caldav_client,
+        dry_run=args.dry_run,
+    )
+
+    # Perform synchronization
+    try:
+        logger.info("Starting synchronization")
+        stats = sync_engine.sync()
+
+        # Display results
+        logger.info("Synchronization completed")
+        print()
+        print(stats)
+
+        if stats.errors > 0:
+            logger.warning(f"Sync completed with {stats.errors} error(s)")
+            return 1
+
+        return 0
+
+    except Exception as e:
+        logger.error(f"Synchronization failed: {e}")
+        logger.debug("Exception details:", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":

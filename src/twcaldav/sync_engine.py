@@ -134,9 +134,9 @@ class SyncEngine:
         for mapping in self.config.mappings:
             project = mapping.taskwarrior_project
             self.logger.debug(f"Loading TaskWarrior tasks from project: {project}")
-            tasks = self.tw.export_tasks(
-                filters=[f"project:{project}", "status:pending,completed,deleted"]
-            )
+
+            # Export all tasks for this project (all statuses)
+            tasks = self.tw.export_tasks(project=project)
             for task in tasks:
                 tw_tasks[task.uuid] = task
 
@@ -147,10 +147,9 @@ class SyncEngine:
         tw_uuid_to_caldav_uid: dict[str, str] = {}
 
         for mapping in self.config.mappings:
-            calendar_name = mapping.caldav_calendar
-            self.logger.debug(f"Loading CalDAV todos from calendar: {calendar_name}")
-            calendar = self.caldav.get_calendar(calendar_name)
-            todos = self.caldav.get_todos(calendar)
+            calendar_id = mapping.caldav_calendar
+            self.logger.debug(f"Loading CalDAV todos from calendar ID: {calendar_id}")
+            todos = self.caldav.get_todos(calendar_id)
 
             for todo in todos:
                 caldav_todos[todo.uid] = todo
@@ -422,8 +421,7 @@ class SyncEngine:
                     self.stats.skipped += 1
                     return
 
-                calendar = self.caldav.get_calendar(calendar_name)
-                self.caldav.create_todo(calendar, vtodo)
+                self.caldav.create_todo(calendar_name, vtodo)
 
             self.stats.caldav_created += 1
 
@@ -469,8 +467,7 @@ class SyncEngine:
                     self.stats.skipped += 1
                     return
 
-                calendar = self.caldav.get_calendar(calendar_name)
-                self.caldav.update_todo(calendar, vtodo)
+                self.caldav.update_todo(calendar_name, vtodo)
 
             self.stats.caldav_updated += 1
 
@@ -483,7 +480,14 @@ class SyncEngine:
                 # Convert CalDAV todo to TaskWarrior task (preserving UUID)
                 task = caldav_to_taskwarrior(pair.caldav_todo)
                 task.uuid = pair.tw_task.uuid  # Preserve TaskWarrior UUID
-                self.tw.modify_task(task)
+
+                # Build modifications dict from task
+                modifications = task.to_dict()
+                # Remove uuid and entry from modifications (can't modify these)
+                modifications.pop("uuid", None)
+                modifications.pop("entry", None)
+
+                self.tw.modify_task(pair.tw_task.uuid, modifications)
 
             self.stats.tw_updated += 1
 
@@ -513,8 +517,7 @@ class SyncEngine:
                     self.stats.skipped += 1
                     return
 
-                calendar = self.caldav.get_calendar(calendar_name)
-                self.caldav.delete_todo(calendar, pair.caldav_todo.uid)
+                self.caldav.delete_todo(calendar_name, pair.caldav_todo.uid)
 
             self.stats.caldav_deleted += 1
 

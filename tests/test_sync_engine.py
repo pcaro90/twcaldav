@@ -154,7 +154,7 @@ class TestSyncEngine:
         pairs = sync_engine._discover_and_correlate()
 
         assert len(pairs) == 0
-        # Should call export_tasks for each mapped project
+        # Should call export_tasks once for each mapped project (no status filter)
         assert mock_tw.export_tasks.call_count == 2
 
     def test_discover_and_correlate_tw_only(self, sync_engine, mock_tw, mock_caldav):
@@ -428,14 +428,11 @@ class TestSyncEngine:
 
         mock_vtodo = VTodo(uid="new-uid", summary="Test")
         mock_convert.return_value = mock_vtodo
-        mock_calendar = Mock()
-        mock_caldav.get_calendar.return_value = mock_calendar
 
         sync_engine._execute_create(pair)
 
         mock_convert.assert_called_once_with(tw_task)
-        mock_caldav.get_calendar.assert_called_once_with("Work Tasks")
-        mock_caldav.create_todo.assert_called_once_with(mock_calendar, mock_vtodo)
+        mock_caldav.create_todo.assert_called_once_with("Work Tasks", mock_vtodo)
         assert sync_engine.stats.caldav_created == 1
 
     @patch("twcaldav.sync_engine.caldav_to_taskwarrior")
@@ -561,13 +558,9 @@ class TestSyncEngine:
             reason="TW deleted",
         )
 
-        mock_calendar = Mock()
-        mock_caldav.get_calendar.return_value = mock_calendar
-
         sync_engine._execute_delete(pair)
 
-        mock_caldav.get_calendar.assert_called_once_with("Work Tasks")
-        mock_caldav.delete_todo.assert_called_once_with(mock_calendar, "cd-123")
+        mock_caldav.delete_todo.assert_called_once_with("Work Tasks", "cd-123")
         assert sync_engine.stats.caldav_deleted == 1
 
     def test_execute_delete_caldav_to_tw(self, sync_engine, mock_tw):

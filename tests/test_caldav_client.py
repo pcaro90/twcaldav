@@ -142,11 +142,11 @@ class TestCalDAVClient:
 
     @patch("caldav.DAVClient")
     def test_get_calendar_found(self, mock_dav_client):
-        """Test getting calendar by name."""
+        """Test getting calendar by ID."""
         mock_cal1 = Mock()
-        mock_cal1.name = "Work"
+        mock_cal1.id = "Work"
         mock_cal2 = Mock()
-        mock_cal2.name = "Personal"
+        mock_cal2.id = "Personal"
 
         mock_principal = Mock()
         mock_principal.calendars.return_value = [mock_cal1, mock_cal2]
@@ -166,7 +166,7 @@ class TestCalDAVClient:
     def test_get_calendar_not_found(self, mock_dav_client):
         """Test getting non-existent calendar."""
         mock_cal = Mock()
-        mock_cal.name = "Work"
+        mock_cal.id = "Work"
 
         mock_principal = Mock()
         mock_principal.calendars.return_value = [mock_cal]
@@ -197,7 +197,7 @@ class TestCalDAVClient:
         mock_todo.data = cal.to_ical()
 
         mock_calendar = Mock()
-        mock_calendar.name = "Work"
+        mock_calendar.id = "Work"
         mock_calendar.todos.return_value = [mock_todo]
 
         mock_principal = Mock()
@@ -220,7 +220,7 @@ class TestCalDAVClient:
     def test_create_todo(self, mock_dav_client):
         """Test creating a todo."""
         mock_calendar = Mock()
-        mock_calendar.name = "Work"
+        mock_calendar.id = "Work"
         mock_calendar.save_todo = Mock()
 
         mock_principal = Mock()
@@ -255,7 +255,7 @@ class TestCalDAVClient:
         mock_todo.delete = Mock()
 
         mock_calendar = Mock()
-        mock_calendar.name = "Work"
+        mock_calendar.id = "Work"
         mock_calendar.todos.return_value = [mock_todo]
 
         mock_principal = Mock()
@@ -295,7 +295,7 @@ class TestCalDAVClient:
         mock_todo2.data = cal2.to_ical()
 
         mock_calendar = Mock()
-        mock_calendar.name = "Work"
+        mock_calendar.id = "Work"
         mock_calendar.todos.return_value = [mock_todo1, mock_todo2]
 
         mock_principal = Mock()
@@ -330,7 +330,7 @@ class TestCalDAVClient:
         mock_todo.data = cal.to_ical()
 
         mock_calendar = Mock()
-        mock_calendar.name = "Work"
+        mock_calendar.id = "Work"
         mock_calendar.todos.return_value = [mock_todo]
 
         mock_principal = Mock()
