@@ -212,7 +212,7 @@ uv run ruff format src/ tests/
 The project has comprehensive test coverage:
 
 - **Unit Tests**: 114 tests covering all modules (88% coverage)
-- **Integration Tests**: 5 end-to-end tests with real CalDAV server
+- **Integration Tests**: 6 end-to-end test phases with real CalDAV server
 
 ```bash
 # Run unit tests
@@ -267,14 +267,12 @@ twcaldav_py/
 │   └── cli.py              # CLI interface
 ├── tests/                  # Test suite
 │   ├── test_*.py           # Unit tests (114 tests)
-│   └── integration/        # Integration tests
+│   └── integration/        # Integration tests (6 phases)
 │       └── test_e2e.py     # End-to-end tests
-├── docker/                 # Docker infrastructure
-│   ├── radicale/           # CalDAV server
-│   └── taskwarrior/        # Test environment
 ├── scripts/                # Utility scripts
 │   ├── run-integration-tests.sh
 │   └── setup-radicale-test-data.sh
+├── docker-compose.test.yml # Local integration testing
 └── .github/workflows/      # CI/CD pipelines
     └── ci.yml
 ```

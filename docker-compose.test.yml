@@ -2,26 +2,20 @@ version: '3.8'
 
 services:
   radicale:
-    build:
-      context: ./docker/radicale
-      dockerfile: Dockerfile
+    image: tomsquest/docker-radicale:latest
     container_name: twcaldav-radicale-test
     ports:
       - "5232:5232"
-    volumes:
-      - radicale-data:/data
     networks:
       - twcaldav-test
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5232').read()"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5232"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   test-runner:
-    build:
-      context: .
-      dockerfile: docker/taskwarrior/Dockerfile
+    image: ubuntu:22.04
     container_name: twcaldav-test-runner
     depends_on:
       radicale:
@@ -32,21 +26,33 @@ services:
       - CALDAV_PASSWORD=test-pass
       - CALDAV_CALENDAR_ID=test-calendar
       - TW_PROJECT=test
-      - TASKDATA=/taskdata
+      - TASKDATA=/tmp/taskwarrior-test
+      - DEBIAN_FRONTEND=noninteractive
     volumes:
-      - taskdata:/taskdata
-      - ./tests:/app/tests
-      - ./src:/app/src
+      - ./:/app
+      - taskdata:/tmp/taskwarrior-test
+    working_dir: /app
     networks:
       - twcaldav-test
     command: >
       bash -c "
-        echo 'Waiting for Radicale to be ready...' &&
+        set -e
+        echo '=== Setting up test environment ===' &&
+        apt-get update -qq &&
+        apt-get install -y -qq taskwarrior curl ca-certificates &&
+        curl -LsSf https://astral.sh/uv/install.sh | sh &&
+        export PATH=\"/root/.local/bin:\$PATH\" &&
+        echo '=== Installing dependencies ===' &&
+        uv sync --all-extras &&
+        echo '=== Initializing TaskWarrior ===' &&
+        mkdir -p /tmp/taskwarrior-test &&
+        task rc.data.location=/tmp/taskwarrior-test rc.confirmation=off version &&
+        echo '=== Waiting for Radicale ===' &&
         sleep 5 &&
-        echo 'Setting up test data...' &&
-        bash /app/scripts/setup-radicale-test-data.sh &&
-        echo 'Running integration tests...' &&
-        uv run python /app/tests/integration/test_e2e.py
+        echo '=== Setting up Radicale test data ===' &&
+        bash scripts/setup-radicale-test-data.sh &&
+        echo '=== Running integration tests ===' &&
+        uv run python tests/integration/test_e2e.py
       "
 
 networks:
@@ -54,5 +60,4 @@ networks:
     driver: bridge
 
 volumes:
-  radicale-data:
   taskdata:

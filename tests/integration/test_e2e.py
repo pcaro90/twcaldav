@@ -435,9 +435,88 @@ def test_tw_to_caldav_modify():
     return True
 
 
+def test_caldav_to_tw_modify():
+    """Test modifying todo in CalDAV and syncing to TaskWarrior."""
+    print_section("PHASE 5: CalDAV → TaskWarrior (Modify)")
+
+    # Get CalDAV client
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+
+    # Get a CalDAV todo to modify (one we created in phase 3)
+    todos = get_caldav_todos(calendar)
+    if not todos:
+        print_error("No todos to modify")
+        return False
+
+    # Find a specific todo to modify
+    todo_to_modify = None
+    for todo in todos:
+        try:
+            ical = Calendar.from_ical(todo.data)
+            for component in ical.walk():
+                if component.name == "VTODO":
+                    summary = str(component.get("summary", ""))
+                    if "CalDAV test todo 1" in summary:
+                        todo_to_modify = (todo, component)
+                        break
+            if todo_to_modify:
+                break
+        except Exception as e:
+            print_error(f"Error parsing todo: {e}")
+            continue
+
+    if not todo_to_modify:
+        print_error("Could not find 'CalDAV test todo 1' to modify")
+        return False
+
+    todo, component = todo_to_modify
+    original_summary = str(component.get("summary", ""))
+    print_info(f"Modifying CalDAV todo: {original_summary}")
+
+    # Modify the todo in CalDAV
+    try:
+        component["summary"] = f"{original_summary} [MODIFIED IN CALDAV]"
+        component["priority"] = 3  # Change priority
+
+        # Save the modified todo
+        ical = Calendar.from_ical(todo.data)
+        for comp in ical.walk():
+            if comp.name == "VTODO":
+                comp["summary"] = component["summary"]
+                comp["priority"] = component["priority"]
+
+        todo.save(ical.to_ical())
+        print_success(f"Modified CalDAV todo: {component['summary']}")
+    except Exception as e:
+        print_error(f"Failed to modify CalDAV todo: {e}")
+        return False
+
+    # Run sync
+    print_info("\nRunning sync...")
+    if not run_sync():
+        print_error("Sync failed")
+        return False
+
+    # Verify in TaskWarrior - check if the modification was synced
+    tasks = get_tw_tasks()
+    found_modified = False
+    for task in tasks:
+        if "[MODIFIED IN CALDAV]" in task.get("description", ""):
+            found_modified = True
+            print_success(f"✓ TaskWarrior task updated: {task['description']}")
+            break
+
+    if found_modified:
+        return True
+
+    print_error("Modified CalDAV todo was not synced to TaskWarrior")
+    return False
+
+
 def test_dry_run():
     """Test dry-run mode."""
-    print_section("PHASE 5: Dry-Run Mode")
+    print_section("PHASE 6: Dry-Run Mode")
 
     # Create a new task
     print_info("Creating new task in TaskWarrior...")
@@ -481,6 +560,7 @@ def main():
         ("TW → CalDAV (Create)", test_tw_to_caldav_create),
         ("CalDAV → TW (Create)", test_caldav_to_tw_create),
         ("TW → CalDAV (Modify)", test_tw_to_caldav_modify),
+        ("CalDAV → TW (Modify)", test_caldav_to_tw_modify),
         ("Dry-Run Mode", test_dry_run),
     ]
 

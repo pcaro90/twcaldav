@@ -36,7 +36,7 @@ The CI/CD workflow runs three types of tests:
 
 ### Option 1: Docker Compose (Recommended)
 
-Run the full integration test suite in Docker:
+Run the full integration test suite in Docker (uses same images as CI):
 
 ```bash
 ./scripts/run-integration-tests.sh
@@ -45,12 +45,14 @@ Run the full integration test suite in Docker:
 Or manually:
 
 ```bash
-# Build and run
-docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
+# Run tests (no build needed - uses public images)
+docker-compose -f docker-compose.test.yml up --abort-on-container-exit
 
 # Cleanup
 docker-compose -f docker-compose.test.yml down -v
 ```
+
+**Note**: The first run will take longer as it downloads images and installs dependencies.
 
 ### Option 2: Local Services
 
@@ -119,13 +121,14 @@ tests/
 
 ## Integration Test Phases
 
-The `test_e2e.py` script runs 5 test phases:
+The `test_e2e.py` script runs 6 test phases:
 
 1. **Initial State** - Verifies TaskWarrior and CalDAV are empty
 2. **TW → CalDAV (Create)** - Creates tasks in TW, syncs to CalDAV
 3. **CalDAV → TW (Create)** - Creates todos in CalDAV, syncs to TW
 4. **TW → CalDAV (Modify)** - Modifies TW task, syncs changes to CalDAV
-5. **Dry-Run Mode** - Verifies dry-run doesn't make changes
+5. **CalDAV → TW (Modify)** - Modifies CalDAV todo, syncs changes to TW
+6. **Dry-Run Mode** - Verifies dry-run doesn't make changes
 
 ## Troubleshooting
 
@@ -150,17 +153,18 @@ The `test_e2e.py` script runs 5 test phases:
 
 ## Docker Images
 
+Local integration testing uses public Docker images (matching CI/CD):
+
 ### Radicale (CalDAV Server)
-- Base: `python:3.13-slim`
-- Installed: Radicale CalDAV server
+- Image: `tomsquest/docker-radicale:latest`
 - Port: 5232
-- Config: `docker/radicale/config`
-- Users: `docker/radicale/users` (test-user:test-pass)
+- Default credentials: test-user:test-pass (configured dynamically)
 
 ### Test Runner (TaskWarrior + Python)
-- Base: `ubuntu:22.04`
-- Installed: TaskWarrior, Python, uv, twcaldav
-- Data: `/taskdata` volume
+- Image: `ubuntu:22.04`
+- Installed: TaskWarrior, curl, ca-certificates, uv (via install script)
+- Python dependencies: Installed via `uv sync --all-extras`
+- Data: `/tmp/taskwarrior-test` volume
 - Runs: Integration test suite
 
 ## Adding New Tests
@@ -175,8 +179,10 @@ To add new integration tests:
 
 ## Performance
 
-- Unit tests: ~0.3 seconds (118 tests)
-- Integration tests: ~30-60 seconds (depends on Docker startup)
+- Unit tests: ~0.3 seconds (114 tests)
+- Integration tests: ~30-90 seconds (6 test phases)
+  - First run: ~90 seconds (image download + dependency install)
+  - Subsequent runs: ~30 seconds
 - Total CI runtime: ~2-3 minutes
 
 ## Future Enhancements
