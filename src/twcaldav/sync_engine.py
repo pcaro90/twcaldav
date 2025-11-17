@@ -92,6 +92,9 @@ class SyncEngine:
         self.dry_run = dry_run
         self.logger = get_logger()
         self.stats = SyncStats()
+        self.caldav_uid_to_calendar: dict[
+            str, str
+        ] = {}  # Maps CalDAV UID to calendar ID
 
     def sync(self) -> SyncStats:
         """Perform bi-directional synchronization.
@@ -137,14 +140,17 @@ class SyncEngine:
 
             # Export all tasks for this project (all statuses)
             tasks = self.tw.export_tasks(project=project)
+            # Filter out deleted tasks - we don't sync those
             for task in tasks:
-                tw_tasks[task.uuid] = task
+                if task.status != "deleted":
+                    tw_tasks[task.uuid] = task
 
         self.logger.info(f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects")
 
         # Collect all VTODOs from CalDAV in mapped calendars
         caldav_todos: dict[str, VTodo] = {}
         tw_uuid_to_caldav_uid: dict[str, str] = {}
+        caldav_uid_to_calendar: dict[str, str] = {}  # Map CalDAV UID to calendar ID
 
         for mapping in self.config.mappings:
             calendar_id = mapping.caldav_calendar
@@ -153,11 +159,17 @@ class SyncEngine:
 
             for todo in todos:
                 caldav_todos[todo.uid] = todo
+                caldav_uid_to_calendar[todo.uid] = (
+                    calendar_id  # Store which calendar this todo is from
+                )
                 # Build reverse mapping from TaskWarrior UUID to CalDAV UID
                 if todo.taskwarrior_uuid:
                     tw_uuid_to_caldav_uid[todo.taskwarrior_uuid] = todo.uid
 
         self.logger.info(f"Found {len(caldav_todos)} CalDAV todos in mapped calendars")
+
+        # Store calendar mapping for later use
+        self.caldav_uid_to_calendar = caldav_uid_to_calendar
 
         # Correlate tasks and classify actions
         task_pairs = []
@@ -434,6 +446,14 @@ class SyncEngine:
             if not self.dry_run:
                 # Convert CalDAV todo to TaskWarrior task
                 task = caldav_to_taskwarrior(pair.caldav_todo)
+
+                # Set the project based on which calendar this todo came from
+                calendar_id = self.caldav_uid_to_calendar.get(pair.caldav_todo.uid)
+                if calendar_id:
+                    project = self.config.get_project_for_calendar(calendar_id)
+                    if project:
+                        task.project = project
+
                 self.tw.create_task(task)
 
             self.stats.tw_created += 1
@@ -480,6 +500,13 @@ class SyncEngine:
                 # Convert CalDAV todo to TaskWarrior task (preserving UUID)
                 task = caldav_to_taskwarrior(pair.caldav_todo)
                 task.uuid = pair.tw_task.uuid  # Preserve TaskWarrior UUID
+
+                # Set the project based on which calendar this todo came from
+                calendar_id = self.caldav_uid_to_calendar.get(pair.caldav_todo.uid)
+                if calendar_id:
+                    project = self.config.get_project_for_calendar(calendar_id)
+                    if project:
+                        task.project = project
 
                 # Build modifications dict from task
                 modifications = task.to_dict()
