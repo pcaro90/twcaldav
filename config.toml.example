@@ -1,0 +1,36 @@
+# TaskWarrior-CalDAV Sync Configuration
+#
+# This file should be placed at: ~/.config/twcaldav/config.toml
+
+# CalDAV server configuration
+[caldav]
+# URL to your CalDAV server (with username if needed in the URL path)
+url = "https://caldav.example.com/dav/calendars/username/"
+# Or for Nextcloud: "https://nextcloud.example.com/remote.php/dav/calendars/username/"
+# Or for Radicale: "http://localhost:5232/username/"
+
+# Authentication credentials
+username = "your-username"
+password = "your-password"
+
+# Synchronization behavior
+[sync]
+# Enable deletion of tasks when deleted on either side
+# If false, tasks deleted on one side will NOT be deleted on the other
+delete_tasks = false
+
+# Project-Calendar mappings
+# Each mapping links a TaskWarrior project to a CalDAV calendar
+# Tasks in unmapped projects will NOT be synced
+
+[[mappings]]
+taskwarrior_project = "work"
+caldav_calendar = "Work Tasks"
+
+[[mappings]]
+taskwarrior_project = "personal"
+caldav_calendar = "Personal"
+
+[[mappings]]
+taskwarrior_project = "home"
+caldav_calendar = "Home"

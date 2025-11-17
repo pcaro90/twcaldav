@@ -1,0 +1,11 @@
+[caldav]
+url = "https://caldav.example.com"
+username = "testuser"
+password = "testpass"
+
+[[mappings]]
+taskwarrior_project = "work"
+caldav_calendar = "Work Calendar"
+
+[sync]
+delete_tasks = false
