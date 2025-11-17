@@ -10,7 +10,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import caldav
@@ -90,7 +90,7 @@ def create_tw_task(description, **kwargs):
     if "priority" in kwargs:
         args.append(f"priority:{kwargs['priority']}")
 
-    stdout, stderr, code = run_task_command(args)
+    _stdout, stderr, code = run_task_command(args)
 
     if code != 0:
         print_error(f"Failed to create task: {stderr}")
@@ -114,19 +114,19 @@ def modify_tw_task(uuid, **modifications):
         else:
             args.append(f"{key}:{value}")
 
-    stdout, stderr, code = run_task_command(args)
+    _stdout, _stderr, code = run_task_command(args)
     return code == 0
 
 
 def complete_tw_task(uuid):
     """Mark a TaskWarrior task as done."""
-    stdout, stderr, code = run_task_command(["rc.confirmation=off", uuid, "done"])
+    _stdout, _stderr, code = run_task_command(["rc.confirmation=off", uuid, "done"])
     return code == 0
 
 
 def delete_tw_task(uuid):
     """Delete a TaskWarrior task."""
-    stdout, stderr, code = run_task_command(["rc.confirmation=off", uuid, "delete"])
+    _stdout, _stderr, code = run_task_command(["rc.confirmation=off", uuid, "delete"])
     return code == 0
 
 
@@ -248,7 +248,7 @@ def clear_test_data():
             if uuid:
                 if status == "deleted":
                     continue
-                elif status == "completed":
+                if status == "completed":
                     subprocess.run(
                         [
                             "task",
@@ -295,7 +295,7 @@ def clear_test_data():
     print_success(f"Cleared TaskWarrior test project (remaining pending: {len(tasks)})")
 
     # Clear CalDAV
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     if principal:
         calendar = get_caldav_calendar(principal)
         if calendar:
@@ -323,7 +323,7 @@ def verify_initial_state():
         return False
 
     # Check CalDAV
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     if not principal:
         return False
 
@@ -347,8 +347,8 @@ def test_tw_to_caldav_create():
 
     # Create tasks
     print_info("Creating 3 tasks in TaskWarrior...")
-    task1 = create_tw_task("Test task 1 - Simple pending")
-    task2 = create_tw_task("Test task 2 - With due date", due="tomorrow", priority="H")
+    create_tw_task("Test task 1 - Simple pending")
+    create_tw_task("Test task 2 - With due date", due="tomorrow", priority="H")
     task3 = create_tw_task("Test task 3 - Will be completed")
 
     if task3:
@@ -366,18 +366,18 @@ def test_tw_to_caldav_create():
 
     # Verify in CalDAV
     # Note: calendar.todos() may not return COMPLETED todos
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     calendar = get_caldav_calendar(principal)
     todos = get_caldav_todos(calendar)
 
     if len(todos) == 2:
         print_success(f"✓ CalDAV now has {len(todos)} todos (expected 2 pending)")
         return True
-    else:
-        print_error(
-            f"CalDAV has {len(todos)} todos, expected 2 (completed task may not be returned by calendar.todos())"
-        )
-        return False
+    print_error(
+        f"CalDAV has {len(todos)} todos, expected 2 (completed task may not be returned"
+        " by calendar.todos())"
+    )
+    return False
 
 
 def test_caldav_to_tw_create():
@@ -385,7 +385,7 @@ def test_caldav_to_tw_create():
     print_section("PHASE 3: CalDAV → TaskWarrior (Create)")
 
     # Get CalDAV client
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     calendar = get_caldav_calendar(principal)
 
     # Create todos in CalDAV
@@ -405,9 +405,8 @@ def test_caldav_to_tw_create():
     if len(tasks) == 4:
         print_success(f"TaskWarrior now has {len(tasks)} pending tasks (expected 4)")
         return True
-    else:
-        print_error(f"TaskWarrior has {len(tasks)} pending tasks, expected 4")
-        return False
+    print_error(f"TaskWarrior has {len(tasks)} pending tasks, expected 4")
+    return False
 
 
 def test_tw_to_caldav_modify():
@@ -444,10 +443,10 @@ def test_dry_run():
     print_info("Creating new task in TaskWarrior...")
     create_tw_task("Dry run test task - should not sync")
 
-    tasks_before = get_tw_tasks()
+    get_tw_tasks()
 
     # Get CalDAV todo count before
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     calendar = get_caldav_calendar(principal)
     todos_before = len(get_caldav_todos(calendar))
 
@@ -461,9 +460,8 @@ def test_dry_run():
     if todos_after == todos_before:
         print_success("✓ CalDAV unchanged (dry-run worked)")
         return True
-    else:
-        print_error(f"CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
-        return False
+    print_error(f"CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
+    return False
 
 
 def main():
