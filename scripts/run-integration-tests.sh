@@ -25,6 +25,11 @@ docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-co
 # Capture exit code
 EXIT_CODE=$?
 
+# Copy test results before cleanup
+echo ""
+echo "Copying test results..."
+docker cp twcaldav-test-runner:/app/test-results.xml . 2>/dev/null && echo "✓ Test results copied to test-results.xml" || echo "Note: No test results file found (this is OK if tests didn't complete)"
+
 # Cleanup
 echo ""
 echo "Cleaning up containers..."

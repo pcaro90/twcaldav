@@ -65,89 +65,20 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     
-    services:
-      radicale:
-        image: tomsquest/docker-radicale:latest
-        ports:
-          - 5232:5232
-        options: >-
-          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:5232 || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install TaskWarrior
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y taskwarrior
+      - name: Run integration tests with Docker Compose
+        run: bash scripts/run-integration-tests.sh
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Set up test environment
-        run: |
-          # Create temporary taskwarrior data directory
-          mkdir -p /tmp/taskwarrior-ci
-          export TASKDATA=/tmp/taskwarrior-ci
-          
-          # Configure TaskWarrior with required UDA
-          mkdir -p ~/.config/task
-          cat > ~/.taskrc << 'EOF'
-          # UDA for CalDAV synchronization
-          uda.caldav_uid.type=string
-          uda.caldav_uid.label=CalDAV UID
-          
-          # Disable confirmation prompts
-          confirmation=off
-          EOF
-          
-          # Initialize taskwarrior
-          task rc.data.location=/tmp/taskwarrior-ci version
-          
-          # Verify UDA is configured
-          echo "Verifying UDA configuration..."
-          task udas | grep caldav_uid && echo "✓ caldav_uid UDA configured" || echo "ERROR: caldav_uid UDA not found"
-          
-          # Wait for Radicale service to be healthy
-          echo "Waiting for Radicale service health check..."
-          sleep 5
-          
-          # Verify Radicale is accessible
-          if curl -f http://localhost:5232 >/dev/null 2>&1; then
-            echo "✓ Radicale is accessible"
-          else
-            echo "WARNING: Radicale not responding without auth, trying with auth..."
-            curl -f -u test-user:test-pass http://localhost:5232 || echo "ERROR: Cannot connect to Radicale"
-          fi
-
-      - name: Set up Radicale test data
-        env:
-          CALDAV_URL: http://localhost:5232/test-user/
-          CALDAV_USERNAME: test-user
-          CALDAV_PASSWORD: test-pass
-        run: bash scripts/setup-radicale-test-data.sh
-
-      - name: Run integration tests
-        env:
-          CALDAV_URL: http://localhost:5232/test-user/
-          CALDAV_USERNAME: test-user
-          CALDAV_PASSWORD: test-pass
-          CALDAV_CALENDAR_ID: test-calendar
-          TW_PROJECT: test
-          TASKDATA: /tmp/taskwarrior-ci
-        run: uv run python tests/integration/test_e2e.py
+          name: integration-test-results
+          path: test-results.xml
+          if-no-files-found: warn
 
       - name: Upload test artifacts
         if: always()
@@ -155,5 +86,5 @@ jobs:
         with:
           name: integration-test-logs
           path: |
-            /tmp/taskwarrior-ci/
             *.log
+          if-no-files-found: ignore

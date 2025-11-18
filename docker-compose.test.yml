@@ -55,8 +55,8 @@ services:
         sleep 5 &&
         echo '=== Setting up Radicale test data ===' &&
         bash scripts/setup-radicale-test-data.sh &&
-        echo '=== Running integration tests ===' &&
-        uv run pytest tests/integration -v --tb=short
+         echo '=== Running integration tests ===' &&
+         uv run pytest tests/integration/test_caldav_to_tw.py tests/integration/test_tw_to_caldav.py tests/integration/test_multi_client.py -v --tb=short --junit-xml=/app/test-results.xml
       "
 
 networks:

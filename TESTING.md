@@ -338,59 +338,141 @@ Verify that dry-run mode makes NO changes.
 
 ## Running Tests
 
-### Run All Tests
+### Local Development Testing
+
+#### Run Unit Tests Only
 ```bash
-pytest tests/
+uv run pytest tests/ --ignore=tests/integration -v
 ```
 
-### Run Specific Test Category
+#### Run Integration Tests (Docker-based)
 ```bash
-pytest tests/test_config.py
-pytest tests/integration/
+# This runs all integration tests in isolated Docker containers
+./scripts/run-integration-tests.sh
 ```
 
-### Run with Coverage
+The integration test script will:
+1. Start a Radicale CalDAV server in Docker
+2. Configure TaskWarrior with required UDAs
+3. Run all 51 integration tests (CalDAV→TW, TW→CalDAV, Multi-client)
+4. Generate test results XML (`test-results.xml`)
+5. Clean up all containers and volumes
+
+**Integration Test Structure:**
+- `tests/integration/test_caldav_to_tw.py` - 17 tests: CalDAV → TaskWarrior sync
+- `tests/integration/test_tw_to_caldav.py` - 17 tests: TaskWarrior → CalDAV sync
+- `tests/integration/test_multi_client.py` - 17 tests: Multi-client synchronization
+
+Each file tests the same scenarios (create, modify, delete, tags, annotations, etc.) in its respective direction.
+
+#### Run All Tests with Coverage
 ```bash
-pytest --cov=src/twcaldav --cov-report=html tests/
+uv run pytest tests/ --ignore=tests/integration --cov=src/twcaldav --cov-report=html
 ```
 
-### Run with Verbose Output
+#### Run Specific Unit Test
 ```bash
-pytest -v tests/
+uv run pytest tests/test_config.py::test_parse_valid_config -v
 ```
 
-### Run Specific Test
+#### Run Specific Integration Test File
 ```bash
-pytest tests/test_config.py::test_parse_valid_config
+# Note: Integration tests must run in Docker environment
+# Modify docker-compose.test.yml to specify the file, then:
+./scripts/run-integration-tests.sh
 ```
 
 ---
 
 ## Continuous Integration
 
-### GitHub Actions (Example)
+### CI/CD Philosophy: Environment Parity
 
-```yaml
-name: Tests
+**Key Principle:** Local and CI testing environments are **identical** to ensure reproducibility.
 
-on: [push, pull_request]
+Both local development and GitHub Actions CI use the **same Docker Compose setup** (`docker-compose.test.yml`):
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
-      - name: Install dependencies
-        run: |
-          pip install uv
-          uv sync
-      - name: Install TaskWarrior
-        run: sudo apt-get install -y taskwarrior
-      - name: Run tests
-        run: pytest --cov=src/twcaldav tests/
+✅ **Benefits:**
+- 100% environment parity between local and CI
+- CI failures can be reproduced locally exactly
+- Single source of truth for test configuration
+- Consistent TaskWarrior and CalDAV versions
+- No configuration drift between environments
+
+### GitHub Actions Workflow
+
+The CI workflow (`.github/workflows/ci.yml`) has three jobs:
+
+1. **Lint** - Runs Ruff linter and formatter checks
+2. **Unit Tests** - Runs unit tests with coverage reporting
+3. **Integration Tests** - Runs the same Docker Compose setup as local development:
+   ```yaml
+   integration-tests:
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+       
+       - name: Run integration tests with Docker Compose
+         run: bash scripts/run-integration-tests.sh
+   ```
+
+### Test Results
+
+Both local and CI generate JUnit XML test results (`test-results.xml`) for:
+- Test result parsing in CI
+- Integration with test reporting tools
+- Historical test trend analysis
+
+### Verifying CI Parity
+
+To verify that CI will pass before pushing:
+
+```bash
+# Run exactly what CI runs:
+./scripts/run-integration-tests.sh
+
+# If this passes locally, CI should pass too!
+```
+
+---
+
+## Test Architecture
+
+### Integration Test Design
+
+The integration tests follow these principles:
+
+1. **Independence**: Each test is self-contained and can run in any order
+2. **Clean State**: Each test starts with a clean TaskWarrior + CalDAV environment
+3. **Real Components**: Uses actual Radicale CalDAV server and TaskWarrior binary
+4. **Comprehensive Coverage**: Tests all CRUD operations, edge cases, and sync directions
+5. **Consistent Scenarios**: All three test files test the same 17 scenarios
+
+### Helper Functions (`tests/integration/helpers.py`)
+
+Centralized utility functions for:
+- TaskWarrior operations (create, modify, delete, annotate tasks)
+- CalDAV operations (create, modify, delete todos)
+- Sync execution with various configurations
+- Environment cleanup and setup
+
+### Test Fixtures (`tests/integration/conftest.py`)
+
+Provides pytest fixtures:
+- `clean_test_environment`: Cleans both TW and CalDAV before each test
+- `multi_client_setup`: Sets up two isolated TaskWarrior clients for multi-client tests
+
+### Environment Configuration
+
+All integration tests use environment variables defined in `docker-compose.test.yml`:
+```bash
+CALDAV_URL=http://radicale:5232/test-user/
+CALDAV_USERNAME=test-user
+CALDAV_PASSWORD=test-pass
+CALDAV_CALENDAR_ID=test-calendar
+TW_PROJECT=test
+TASKDATA=/tmp/taskwarrior-test
 ```
 
 ---
