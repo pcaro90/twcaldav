@@ -44,6 +44,56 @@ def check_integration_environment():
         )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def setup_taskwarrior_uda():
+    """Configure TaskWarrior UDA for the global TASKDATA directory.
+
+    This fixture runs once per test session and configures the caldav_uid UDA
+    in the global TaskWarrior data directory. This ensures all single-client
+    tests have the necessary UDA configuration without relying on docker-compose.
+
+    Note: Multi-client tests create their own isolated TW instances with UDAs
+    via the multi_client_setup fixture.
+    """
+    import subprocess
+
+    taskdata = os.getenv("TASKDATA")
+    if not taskdata:
+        pytest.skip("TASKDATA environment variable not set")
+
+    # Ensure the directory exists
+    Path(taskdata).mkdir(parents=True, exist_ok=True)
+
+    # Configure UDA for caldav_uid
+    try:
+        subprocess.run(
+            [
+                "task",
+                f"rc.data.location={taskdata}",
+                "rc.confirmation=off",
+                "config",
+                "uda.caldav_uid.type",
+                "string",
+            ],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "task",
+                f"rc.data.location={taskdata}",
+                "rc.confirmation=off",
+                "config",
+                "uda.caldav_uid.label",
+                "CalDAV UID",
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        pytest.fail(f"Failed to configure TaskWarrior UDA: {e}")
+
+
 @pytest.fixture(scope="function")
 def clean_test_environment():
     """Clean both TaskWarrior and CalDAV before each test.
