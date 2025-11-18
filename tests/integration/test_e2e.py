@@ -25,6 +25,10 @@ CALDAV_CALENDAR_ID = os.getenv("CALDAV_CALENDAR_ID", "test-calendar")
 TW_PROJECT = os.getenv("TW_PROJECT", "test")
 TASKDATA = os.getenv("TASKDATA", None)
 
+# Multi-client test configuration
+TASKDATA_CLIENT1 = os.getenv("TASKDATA_CLIENT1", "/tmp/tw-client1")
+TASKDATA_CLIENT2 = os.getenv("TASKDATA_CLIENT2", "/tmp/tw-client2")
+
 
 class Colors:
     """ANSI color codes for terminal output."""
@@ -192,8 +196,14 @@ def create_caldav_todo(calendar, summary, **kwargs):
         return False
 
 
-def run_sync(dry_run=False):
-    """Run the twcaldav sync."""
+def run_sync(dry_run=False, taskdata_override=None, delete_tasks=True):
+    """Run the twcaldav sync.
+
+    Args:
+        dry_run: If True, run in dry-run mode.
+        taskdata_override: Optional TASKDATA path to use instead of default.
+        delete_tasks: If True, allow task deletion during sync.
+    """
     # Create config file for CI environment
     config_path = Path("/tmp/twcaldav-ci-config.toml")
     config_content = f"""[caldav]
@@ -206,7 +216,7 @@ taskwarrior_project = "{TW_PROJECT}"
 caldav_calendar = "{CALDAV_CALENDAR_ID}"
 
 [sync]
-delete_tasks = false
+delete_tasks = {str(delete_tasks).lower()}
 """
     config_path.write_text(config_content)
 
@@ -216,10 +226,150 @@ delete_tasks = false
 
     print_info(f"Running sync: {' '.join(args)}")
     env = os.environ.copy()
-    if TASKDATA:
-        env["TASKDATA"] = TASKDATA
+    taskdata_path = taskdata_override or TASKDATA
+    if taskdata_path:
+        env["TASKDATA"] = taskdata_path
     result = subprocess.run(args, cwd="/app" if Path("/app").exists() else ".", env=env)
     return result.returncode == 0
+
+
+def setup_client_taskdata(client_path):
+    """Set up a TaskWarrior data directory for a client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+    """
+    client_dir = Path(client_path)
+
+    # Clean up existing data directory to start fresh
+    if client_dir.exists():
+        import shutil
+
+        shutil.rmtree(client_dir)
+
+    client_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a .taskrc file with UDA configuration
+    taskrc_path = client_dir / "taskrc"
+    taskrc_content = """# TaskWarrior configuration for multi-client testing
+data.location={data_dir}
+
+# UDA for CalDAV synchronization
+uda.caldav_uid.type=string
+uda.caldav_uid.label=CalDAV UID
+
+# Disable confirmation prompts
+confirmation=off
+"""
+    taskrc_path.write_text(taskrc_content.format(data_dir=client_path))
+    print_info(f"Created TaskWarrior config at {taskrc_path}")
+
+    return str(taskrc_path)
+
+
+def run_client_task_command(client_path, args):
+    """Run a TaskWarrior command for a specific client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+        args: Command arguments to pass to task.
+
+    Returns:
+        Tuple of (stdout, stderr, returncode).
+    """
+    cmd = ["task", f"rc.data.location={client_path}", *args]
+    env = os.environ.copy()
+
+    print_info(f"Running (client): {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    return result.stdout, result.stderr, result.returncode
+
+
+def get_client_tasks(client_path):
+    """Get all pending tasks from a specific client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+
+    Returns:
+        List of task dictionaries.
+    """
+    stdout, _, _ = run_client_task_command(
+        client_path, ["project:" + TW_PROJECT, "status:pending", "export"]
+    )
+    if not stdout.strip():
+        return []
+    return json.loads(stdout)
+
+
+def create_client_task(client_path, description, **kwargs):
+    """Create a task in a specific client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+        description: Task description.
+        **kwargs: Additional task attributes (due, priority, etc.).
+
+    Returns:
+        The created task dictionary or None.
+    """
+    args = ["add", description, "project:" + TW_PROJECT]
+
+    if "due" in kwargs:
+        args.append(f"due:{kwargs['due']}")
+    if "priority" in kwargs:
+        args.append(f"priority:{kwargs['priority']}")
+
+    _stdout, stderr, code = run_client_task_command(client_path, args)
+
+    if code != 0:
+        print_error(f"Failed to create task: {stderr}")
+        return None
+
+    # Get the most recently created task
+    tasks = get_client_tasks(client_path)
+    if tasks:
+        return max(tasks, key=lambda t: t.get("entry", ""))
+    return None
+
+
+def modify_client_task(client_path, uuid, **modifications):
+    """Modify a task in a specific client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+        uuid: Task UUID.
+        **modifications: Modifications to apply.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    args = ["rc.confirmation=off", uuid, "modify"]
+
+    for key, value in modifications.items():
+        if key == "description":
+            args.append(value)
+        else:
+            args.append(f"{key}:{value}")
+
+    _stdout, _stderr, code = run_client_task_command(client_path, args)
+    return code == 0
+
+
+def delete_client_task(client_path, uuid):
+    """Delete a task in a specific client.
+
+    Args:
+        client_path: Path to the client's TASKDATA directory.
+        uuid: Task UUID.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    _stdout, _stderr, code = run_client_task_command(
+        client_path, ["rc.confirmation=off", uuid, "delete"]
+    )
+    return code == 0
 
 
 def clear_test_data():
@@ -359,9 +509,9 @@ def test_tw_to_caldav_create():
     tasks = get_tw_tasks()
     print_success(f"TaskWarrior has {len(tasks)} pending tasks (1 completed)")
 
-    # Run sync
+    # Run sync (without deletion for this test)
     print_info("\nRunning sync...")
-    if not run_sync():
+    if not run_sync(delete_tasks=False):
         print_error("Sync failed")
         return False
 
@@ -394,9 +544,9 @@ def test_caldav_to_tw_create():
     create_caldav_todo(calendar, "CalDAV test todo 1")
     create_caldav_todo(calendar, "CalDAV test todo 2 - High priority", priority=1)
 
-    # Run sync
+    # Run sync (without deletion for this test)
     print_info("\nRunning sync...")
-    if not run_sync():
+    if not run_sync(delete_tasks=False):
         print_error("Sync failed")
         return False
 
@@ -426,9 +576,9 @@ def test_tw_to_caldav_modify():
     print_info(f"Modifying task: {original_desc}")
     modify_tw_task(task["uuid"], description=f"{original_desc} [MODIFIED]", due="2days")
 
-    # Run sync
+    # Run sync (without deletion for this test)
     print_info("\nRunning sync...")
-    if not run_sync():
+    if not run_sync(delete_tasks=False):
         print_error("Sync failed")
         return False
 
@@ -517,9 +667,9 @@ def test_caldav_to_tw_modify():
         traceback.print_exc()
         return False
 
-    # Run sync
+    # Run sync (without deletion for this test)
     print_info("\nRunning sync...")
-    if not run_sync():
+    if not run_sync(delete_tasks=False):
         print_error("Sync failed")
         return False
 
@@ -554,9 +704,9 @@ def test_dry_run():
     calendar = get_caldav_calendar(principal)
     todos_before = len(get_caldav_todos(calendar))
 
-    # Run sync in dry-run mode
+    # Run sync in dry-run mode (without deletion for this test)
     print_info("\nRunning sync in DRY-RUN mode...")
-    run_sync(dry_run=True)
+    run_sync(dry_run=True, delete_tasks=False)
 
     # Verify CalDAV didn't change
     todos_after = len(get_caldav_todos(calendar))
@@ -565,6 +715,271 @@ def test_dry_run():
         print_success("✓ CalDAV unchanged (dry-run worked)")
         return True
     print_error(f"CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
+    return False
+
+
+def test_uda_configuration():
+    """Test that the required UDA (caldav_uid) is properly configured."""
+    print_section("PHASE 0: UDA Configuration")
+
+    stdout, stderr, code = run_task_command(["udas"])
+
+    if code != 0:
+        print_error(f"Failed to get UDAs: {stderr}")
+        return False
+
+    # Check if caldav_uid UDA is defined
+    if "caldav_uid" in stdout:
+        print_success("✓ caldav_uid UDA is configured")
+        print_info(f"UDA output:\n{stdout[:200]}")
+        return True
+
+    print_error("caldav_uid UDA is not configured")
+    print_info(f"Available UDAs:\n{stdout}")
+    return False
+
+
+def test_tw_to_caldav_delete():
+    """Test deleting task in TaskWarrior and syncing to CalDAV."""
+    print_section("PHASE 7: TaskWarrior → CalDAV (Delete)")
+
+    # Get current state
+    tasks = get_tw_tasks()
+    if not tasks:
+        print_error("No tasks available to delete")
+        return False
+
+    # Get CalDAV state before deletion
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+    todos_before = len(get_caldav_todos(calendar))
+
+    # Delete a task
+    task = tasks[0]
+    task_desc = task["description"]
+    print_info(f"Deleting task: {task_desc}")
+
+    if not delete_tw_task(task["uuid"]):
+        print_error("Failed to delete task")
+        return False
+
+    # Run sync
+    print_info("\nRunning sync...")
+    if not run_sync():
+        print_error("Sync failed")
+        return False
+
+    # Verify in CalDAV - should have one less todo
+    todos_after = len(get_caldav_todos(calendar))
+
+    if todos_after == todos_before - 1:
+        print_success(f"✓ CalDAV todo deleted: {todos_before} → {todos_after}")
+        return True
+
+    print_error(f"CalDAV todos unchanged: {todos_before} → {todos_after}")
+    return False
+
+
+def test_caldav_to_tw_delete():
+    """Test deleting todo in CalDAV and syncing to TaskWarrior."""
+    print_section("PHASE 8: CalDAV → TaskWarrior (Delete)")
+
+    # Get CalDAV client
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+
+    # Get current states
+    tasks_before = len(get_tw_tasks())
+    todos = get_caldav_todos(calendar)
+
+    if not todos:
+        print_error("No todos available to delete")
+        return False
+
+    # Delete a CalDAV todo
+    todo_to_delete = todos[0]
+    try:
+        # Get summary for logging
+        ical = Calendar.from_ical(todo_to_delete.data)
+        summary = "unknown"
+        for component in ical.walk():
+            if component.name == "VTODO":
+                summary = str(component.get("summary", "unknown"))
+                break
+
+        print_info(f"Deleting CalDAV todo: {summary}")
+        todo_to_delete.delete()
+        print_success(f"Deleted CalDAV todo: {summary}")
+    except Exception as e:
+        print_error(f"Failed to delete CalDAV todo: {e}")
+        return False
+
+    # Run sync
+    print_info("\nRunning sync...")
+    if not run_sync():
+        print_error("Sync failed")
+        return False
+
+    # Verify in TaskWarrior - should have one less task
+    tasks_after = len(get_tw_tasks())
+
+    if tasks_after == tasks_before - 1:
+        print_success(f"✓ TaskWarrior task deleted: {tasks_before} → {tasks_after}")
+        return True
+
+    print_error(f"TaskWarrior tasks unchanged: {tasks_before} → {tasks_after}")
+    return False
+
+
+def test_multi_client_create():
+    """Test task creation synchronization between two TaskWarrior clients."""
+    print_section("PHASE 10: Multi-Client (Create)")
+
+    # Setup two clients
+    print_info("Setting up two TaskWarrior clients...")
+    setup_client_taskdata(TASKDATA_CLIENT1)
+    setup_client_taskdata(TASKDATA_CLIENT2)
+
+    # Clear CalDAV to start fresh
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+    for todo in get_caldav_todos(calendar):
+        todo.delete()
+
+    # Client 1: Create a task
+    print_info("\n[CLIENT 1] Creating a task...")
+    task1 = create_client_task(
+        TASKDATA_CLIENT1, "Multi-client test task from client 1", priority="H"
+    )
+    if not task1:
+        print_error("Failed to create task in client 1")
+        return False
+    print_success(f"[CLIENT 1] Created: {task1['description']}")
+
+    # Client 1: Sync to CalDAV
+    print_info("\n[CLIENT 1] Syncing to CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT1):
+        print_error("Client 1 sync failed")
+        return False
+
+    # Verify task is in CalDAV
+    todos_after_sync = get_caldav_todos(calendar)
+    if len(todos_after_sync) != 1:
+        print_error(f"Expected 1 todo in CalDAV, found {len(todos_after_sync)}")
+        return False
+    print_success(f"✓ Task synced to CalDAV")
+
+    # Client 2: Sync from CalDAV
+    print_info("\n[CLIENT 2] Syncing from CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT2):
+        print_error("Client 2 sync failed")
+        return False
+
+    # Verify task appears in Client 2
+    client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
+    if len(client2_tasks) != 1:
+        print_error(f"Expected 1 task in client 2, found {len(client2_tasks)}")
+        return False
+
+    if "Multi-client test task from client 1" in client2_tasks[0]["description"]:
+        print_success(f"✓ [CLIENT 2] Task synced: {client2_tasks[0]['description']}")
+        return True
+
+    print_error("Task not properly synced to client 2")
+    return False
+
+
+def test_multi_client_modify():
+    """Test task modification synchronization between two TaskWarrior clients."""
+    print_section("PHASE 11: Multi-Client (Modify)")
+
+    # Client 2: Modify the task
+    client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
+    if not client2_tasks:
+        print_error("No tasks in client 2 to modify")
+        return False
+
+    task = client2_tasks[0]
+    original_desc = task["description"]
+
+    print_info(f"\n[CLIENT 2] Modifying task: {original_desc}")
+    # Wait to ensure timestamp separation
+    time.sleep(2)
+    if not modify_client_task(
+        TASKDATA_CLIENT2,
+        task["uuid"],
+        description=f"{original_desc} [MODIFIED BY CLIENT 2]",
+    ):
+        print_error("Failed to modify task in client 2")
+        return False
+    print_success(f"[CLIENT 2] Modified task")
+
+    # Client 2: Sync to CalDAV
+    print_info("\n[CLIENT 2] Syncing to CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT2):
+        print_error("Client 2 sync failed")
+        return False
+
+    # Client 1: Sync from CalDAV
+    print_info("\n[CLIENT 1] Syncing from CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT1):
+        print_error("Client 1 sync failed")
+        return False
+
+    # Verify modification appears in Client 1
+    client1_tasks = get_client_tasks(TASKDATA_CLIENT1)
+    if not client1_tasks:
+        print_error("No tasks found in client 1")
+        return False
+
+    if "[MODIFIED BY CLIENT 2]" in client1_tasks[0]["description"]:
+        print_success(f"✓ [CLIENT 1] Task updated: {client1_tasks[0]['description']}")
+        return True
+
+    print_error(
+        f"Modification not synced to client 1. Got: {client1_tasks[0]['description']}"
+    )
+    return False
+
+
+def test_multi_client_delete():
+    """Test task deletion synchronization between two TaskWarrior clients."""
+    print_section("PHASE 12: Multi-Client (Delete)")
+
+    # Client 1: Delete the task
+    client1_tasks = get_client_tasks(TASKDATA_CLIENT1)
+    if not client1_tasks:
+        print_error("No tasks in client 1 to delete")
+        return False
+
+    task = client1_tasks[0]
+    task_desc = task["description"]
+
+    print_info(f"\n[CLIENT 1] Deleting task: {task_desc}")
+    if not delete_client_task(TASKDATA_CLIENT1, task["uuid"]):
+        print_error("Failed to delete task in client 1")
+        return False
+    print_success(f"[CLIENT 1] Deleted task")
+
+    # Client 1: Sync to CalDAV
+    print_info("\n[CLIENT 1] Syncing to CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT1):
+        print_error("Client 1 sync failed")
+        return False
+
+    # Client 2: Sync from CalDAV
+    print_info("\n[CLIENT 2] Syncing from CalDAV...")
+    if not run_sync(taskdata_override=TASKDATA_CLIENT2):
+        print_error("Client 2 sync failed")
+        return False
+
+    # Verify task is deleted in Client 2
+    client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
+    if len(client2_tasks) == 0:
+        print_success("✓ [CLIENT 2] Task deleted")
+        return True
+
+    print_error(f"Task not deleted in client 2. Found {len(client2_tasks)} tasks")
     return False
 
 
@@ -581,12 +996,18 @@ def main():
 
     # Run tests
     tests = [
+        ("UDA Configuration", test_uda_configuration),
         ("Initial State", verify_initial_state),
         ("TW → CalDAV (Create)", test_tw_to_caldav_create),
         ("CalDAV → TW (Create)", test_caldav_to_tw_create),
         ("TW → CalDAV (Modify)", test_tw_to_caldav_modify),
         ("CalDAV → TW (Modify)", test_caldav_to_tw_modify),
+        ("TW → CalDAV (Delete)", test_tw_to_caldav_delete),
+        ("CalDAV → TW (Delete)", test_caldav_to_tw_delete),
         ("Dry-Run Mode", test_dry_run),
+        ("Multi-Client (Create)", test_multi_client_create),
+        ("Multi-Client (Modify)", test_multi_client_modify),
+        ("Multi-Client (Delete)", test_multi_client_delete),
     ]
 
     results = []
