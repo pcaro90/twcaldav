@@ -26,6 +26,7 @@ services:
       - TW_PROJECT=test
       - TASKDATA=/tmp/taskwarrior-test
       - DEBIAN_FRONTEND=noninteractive
+      - UV_PROJECT_ENVIRONMENT=/tmp/uv-env
     volumes:
       - ./:/app
       - taskdata:/tmp/taskwarrior-test
