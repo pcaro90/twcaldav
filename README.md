@@ -9,11 +9,12 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 ## Features
 
 - 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔ CalDAV)
-- 📅 **Full CalDAV Support** - Works with Radicale, Baikal, and other CalDAV servers
+- 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple computers
+- 📅 **Full CalDAV Support** - Works with Radicale, Baikal, Nextcloud, and other CalDAV servers
 - 🎯 **Project Mapping** - Map TaskWarrior projects to CalDAV calendars
 - 🔍 **Smart Sync** - Timestamp-based conflict resolution
 - 🧪 **Dry Run Mode** - Preview changes before syncing
-- ✅ **Comprehensive Tests** - 114 unit tests + 5 integration tests
+- ✅ **Comprehensive Tests** - 118 unit tests + 5 integration tests
 - 🐳 **CI/CD Ready** - Automated testing with Docker
 
 ## Installation
@@ -40,7 +41,18 @@ pip install -e .
 
 ## Quick Start
 
-### 1. Configure
+### 1. Configure TaskWarrior UDA
+
+**IMPORTANT**: Before first sync, configure TaskWarrior to recognize the CalDAV UID as a User Defined Attribute:
+
+```bash
+task config uda.caldav_uid.type string
+task config uda.caldav_uid.label "CalDAV UID"
+```
+
+This allows twcaldav to store the CalDAV task identifier in your TaskWarrior database, enabling proper synchronization across multiple devices.
+
+### 2. Create Configuration File
 
 Create `~/.config/twcaldav/config.toml`:
 
@@ -62,7 +74,7 @@ caldav_calendar = "another-calendar-id"
 delete_tasks = false  # Set to true to sync deletions
 ```
 
-### 2. Run Sync
+### 3. Run Sync
 
 ```bash
 # Sync everything
@@ -177,7 +189,7 @@ systemctl --user enable --now twcaldav.timer
 | project | CATEGORIES |
 | tags | CATEGORIES |
 | annotations | DESCRIPTION |
-| uuid | Part of UID (tw-{uuid}@twcaldav) |
+| caldav_uid (UDA) | UID (unique identifier) |
 
 ## Development
 
@@ -295,9 +307,19 @@ twcaldav_py/
 
 ### Duplicates created
 
-- Ensure UID correlation is working (check tw-{uuid}@twcaldav format)
+- Ensure UDA is configured correctly: `task _get rc.uda.caldav_uid.type`
+- Check if tasks have CalDAV UID: `task list rc.report.list.columns=id,description,caldav_uid`
 - Don't run multiple sync instances simultaneously
 - Check for stale tasks: `task status:deleted list`
+
+### UDA not configured error
+
+If you see errors about missing `caldav_uid` UDA, configure it:
+
+```bash
+task config uda.caldav_uid.type string
+task config uda.caldav_uid.label "CalDAV UID"
+```
 
 ## Contributing
 

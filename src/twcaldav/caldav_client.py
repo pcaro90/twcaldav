@@ -24,7 +24,6 @@ class VTodo:
     categories: list[str] | None = None
     created: datetime | None = None
     last_modified: datetime | None = None
-    taskwarrior_uuid: str | None = None  # Custom property
 
     @classmethod
     def from_icalendar(cls, todo: Any) -> "VTodo":
@@ -86,11 +85,6 @@ class VTodo:
             else:
                 categories = list(cats.cats) if hasattr(cats, "cats") else [str(cats)]
 
-        # Check for custom X-TASKWARRIOR-UUID property
-        taskwarrior_uuid = None
-        if todo.get("X-TASKWARRIOR-UUID"):
-            taskwarrior_uuid = str(todo.get("X-TASKWARRIOR-UUID"))
-
         return cls(
             uid=uid,
             summary=summary,
@@ -101,7 +95,6 @@ class VTodo:
             categories=categories,
             created=created,
             last_modified=last_modified,
-            taskwarrior_uuid=taskwarrior_uuid,
         )
 
     def to_icalendar(self) -> Todo:
@@ -128,10 +121,6 @@ class VTodo:
             todo.add("CREATED", self.created)
         if self.last_modified:
             todo.add("LAST-MODIFIED", self.last_modified)
-
-        # Add custom TaskWarrior UUID property
-        if self.taskwarrior_uuid:
-            todo.add("X-TASKWARRIOR-UUID", self.taskwarrior_uuid)
 
         return todo
 
@@ -379,26 +368,5 @@ class CalDAVClient:
         todos = self.get_todos(calendar_id)
         for todo in todos:
             if todo.uid == uid:
-                return todo
-        return None
-
-    def get_todo_by_taskwarrior_uuid(
-        self, calendar_id: str, tw_uuid: str
-    ) -> VTodo | None:
-        """Get a todo by TaskWarrior UUID.
-
-        Args:
-            calendar_id: Name of calendar.
-            tw_uuid: TaskWarrior UUID.
-
-        Returns:
-            VTodo object if found, None otherwise.
-
-        Raises:
-            CalDAVError: If query fails.
-        """
-        todos = self.get_todos(calendar_id)
-        for todo in todos:
-            if todo.taskwarrior_uuid == tw_uuid:
                 return todo
         return None

@@ -24,6 +24,7 @@ class Task:
     priority: str | None = None
     tags: list[str] | None = None
     annotations: list[dict[str, Any]] | None = None
+    caldav_uid: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Task":
@@ -55,6 +56,7 @@ class Task:
             priority=data.get("priority"),
             tags=data.get("tags"),
             annotations=data.get("annotations"),
+            caldav_uid=data.get("caldav_uid"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,6 +84,8 @@ class Task:
             data["tags"] = self.tags
         if self.annotations:
             data["annotations"] = self.annotations
+        if self.caldav_uid:
+            data["caldav_uid"] = self.caldav_uid
 
         return data
 
@@ -132,14 +136,28 @@ class TaskWarrior:
         Raises:
             TaskWarriorError: If command fails.
         """
-        cmd = [self.task_bin, *args]
+        import os
+
+        # Determine taskdata location from self.taskdata or TASKDATA env var
+        taskdata_path = None
+        if self.taskdata:
+            taskdata_path = str(self.taskdata)
+        elif "TASKDATA" in os.environ:
+            taskdata_path = os.environ["TASKDATA"]
+
+        # Build command with rc.data.location if taskdata is specified
+        cmd_args = list(args)
+        if taskdata_path and not check_binary:
+            # Insert rc.data.location as first argument (after 'task')
+            cmd_args.insert(0, f"rc.data.location={taskdata_path}")
+
+        cmd = [self.task_bin, *cmd_args]
         env = None
 
-        if self.taskdata:
-            import os
-
+        # Also set TASKDATA environment variable for compatibility
+        if taskdata_path:
             env = os.environ.copy()
-            env["TASKDATA"] = str(self.taskdata)
+            env["TASKDATA"] = taskdata_path
 
         if not check_binary:
             self.logger.debug(f"Running TaskWarrior command: {' '.join(cmd)}")
@@ -336,3 +354,18 @@ class TaskWarrior:
             TaskWarriorError: If query fails.
         """
         return self.export_tasks(project=project, status=status)
+
+    def get_task_by_caldav_uid(self, caldav_uid: str) -> Task | None:
+        """Get a task by CalDAV UID (UDA).
+
+        Args:
+            caldav_uid: CalDAV UID to search for.
+
+        Returns:
+            Task object if found, None otherwise.
+
+        Raises:
+            TaskWarriorError: If query fails.
+        """
+        tasks = self.export_tasks(filter_args=[f"caldav_uid:{caldav_uid}"])
+        return tasks[0] if tasks else None

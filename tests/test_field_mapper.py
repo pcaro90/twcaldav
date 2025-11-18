@@ -24,10 +24,11 @@ class TestTaskWarriorToCalDAV:
 
         vtodo = taskwarrior_to_caldav(task)
 
-        assert vtodo.uid == "tw-12345678-1234-1234-1234-123456789012@twcaldav"
+        # CalDAV UID should be generated (UUID4 format)
+        assert len(vtodo.uid) == 36  # UUID4 format
+        assert "-" in vtodo.uid
         assert vtodo.summary == "Test task"
         assert vtodo.status == "NEEDS-ACTION"
-        assert vtodo.taskwarrior_uuid == "12345678-1234-1234-1234-123456789012"
 
     def test_full_conversion(self):
         """Test converting complete task."""
@@ -49,6 +50,7 @@ class TestTaskWarriorToCalDAV:
         assert vtodo.status == "NEEDS-ACTION"
         assert vtodo.due == datetime(2024, 11, 20, 12, 0, 0, tzinfo=UTC)
         assert vtodo.priority == 1  # H -> 1
+        assert vtodo.categories is not None
         assert "work" in vtodo.categories
         assert "important" in vtodo.categories
 
@@ -167,12 +169,13 @@ class TestCalDAVToTaskWarrior:
             categories=["work", "urgent"],
             created=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
             last_modified=datetime(2024, 11, 17, 11, 0, 0, tzinfo=UTC),
-            taskwarrior_uuid="tw-uuid-456",
         )
 
         task = caldav_to_taskwarrior(vtodo)
 
-        assert task.uuid == "tw-uuid-456"
+        # TW UUID is generated, CalDAV UID stored in UDA
+        assert len(task.uuid) == 36  # UUID4 format
+        assert task.caldav_uid == "caldav-uid-123"
         assert task.description == "Complete task"
         assert task.status == "pending"
         assert task.project == "work"

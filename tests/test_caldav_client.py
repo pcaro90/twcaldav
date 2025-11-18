@@ -38,7 +38,6 @@ class TestVTodo:
         todo.add("CATEGORIES", ["work", "important"])
         todo.add("CREATED", datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC))
         todo.add("LAST-MODIFIED", datetime(2024, 11, 17, 11, 0, 0, tzinfo=UTC))
-        todo.add("X-TASKWARRIOR-UUID", "tw-uuid-456")
 
         vtodo = VTodo.from_icalendar(todo)
 
@@ -49,7 +48,6 @@ class TestVTodo:
         assert vtodo.due == datetime(2024, 11, 20, 12, 0, 0, tzinfo=UTC)
         assert vtodo.priority == 5
         assert vtodo.categories == ["work", "important"]
-        assert vtodo.taskwarrior_uuid == "tw-uuid-456"
 
     def test_to_icalendar_minimal(self):
         """Test converting minimal VTodo to icalendar."""
@@ -76,7 +74,6 @@ class TestVTodo:
             categories=["work", "important"],
             created=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
             last_modified=datetime(2024, 11, 17, 11, 0, 0, tzinfo=UTC),
-            taskwarrior_uuid="tw-uuid-456",
         )
 
         todo = vtodo.to_icalendar()
@@ -86,7 +83,7 @@ class TestVTodo:
         assert str(todo.get("STATUS")) == "NEEDS-ACTION"
         assert str(todo.get("DESCRIPTION")) == "Task description"
         assert todo.get("PRIORITY") == 5
-        assert str(todo.get("X-TASKWARRIOR-UUID")) == "tw-uuid-456"
+        # X-TASKWARRIOR-UUID no longer included (using UDA instead)
 
 
 class TestCalDAVClient:
@@ -313,38 +310,3 @@ class TestCalDAVClient:
         assert todo is not None
         assert todo.uid == "test-uid-456"
         assert todo.summary == "Task 2"
-
-    @patch("caldav.DAVClient")
-    def test_get_todo_by_taskwarrior_uuid(self, mock_dav_client):
-        """Test getting todo by TaskWarrior UUID."""
-        # Create mock todo with TaskWarrior UUID
-        todo_component = Todo()
-        todo_component.add("UID", "caldav-uid-123")
-        todo_component.add("SUMMARY", "Test task")
-        todo_component.add("X-TASKWARRIOR-UUID", "tw-uuid-456")
-
-        cal = Calendar()
-        cal.add_component(todo_component)
-
-        mock_todo = Mock()
-        mock_todo.data = cal.to_ical()
-
-        mock_calendar = Mock()
-        mock_calendar.id = "Work"
-        mock_calendar.todos.return_value = [mock_todo]
-
-        mock_principal = Mock()
-        mock_principal.calendars.return_value = [mock_calendar]
-
-        mock_client_instance = Mock()
-        mock_client_instance.principal.return_value = mock_principal
-        mock_dav_client.return_value = mock_client_instance
-
-        client = CalDAVClient(
-            url="https://caldav.example.com", username="user", password="pass"
-        )
-        todo = client.get_todo_by_taskwarrior_uuid("Work", "tw-uuid-456")
-
-        assert todo is not None
-        assert todo.taskwarrior_uuid == "tw-uuid-456"
-        assert todo.summary == "Test task"

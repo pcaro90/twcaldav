@@ -10,7 +10,8 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import caldav
@@ -470,6 +471,10 @@ def test_caldav_to_tw_modify():
         print_error("Could not find 'CalDAV test todo 1' to modify")
         return False
 
+    # Wait before modification to ensure clear timestamp separation from previous sync
+    print_info("Waiting 2 seconds to ensure timestamp separation...")
+    time.sleep(2)
+
     # Get the current data and modify it
     try:
         ical = Calendar.from_ical(todo_to_modify.data)
@@ -480,9 +485,20 @@ def test_caldav_to_tw_modify():
                 original_summary = str(component.get("summary", ""))
                 print_info(f"Modifying CalDAV todo: {original_summary}")
 
-                # Modify the component
-                component["summary"] = f"{original_summary} [MODIFIED IN CALDAV]"
-                component["priority"] = 3  # Change priority
+                # Modify the component using the proper icalendar API
+                # Delete old properties and add new ones
+                if "summary" in component:
+                    del component["summary"]
+                component.add("summary", f"{original_summary} [MODIFIED IN CALDAV]")
+
+                if "priority" in component:
+                    del component["priority"]
+                component.add("priority", 3)
+
+                # Update LAST-MODIFIED to ensure sync engine detects the change
+                if "last-modified" in component:
+                    del component["last-modified"]
+                component.add("last-modified", datetime.now(timezone.utc))
                 break
 
         if not original_summary:

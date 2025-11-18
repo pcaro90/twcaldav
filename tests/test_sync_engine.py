@@ -209,13 +209,13 @@ class TestSyncEngine:
             entry=now,
             modified=now,
             project="work",
+            caldav_uid="caldav-uid-123",
         )
         caldav_todo = VTodo(
-            uid="tw-tw-123@twcaldav",
+            uid="caldav-uid-123",
             summary="Test todo",
             status="NEEDS-ACTION",
             last_modified=now,
-            taskwarrior_uuid="tw-123",
         )
 
         mock_tw.export_tasks.return_value = [tw_task]
@@ -347,9 +347,8 @@ class TestSyncEngine:
         )
         caldav_todo = VTodo(
             uid="cd-123",
-            summary="Test",
+            summary="Old",
             status="NEEDS-ACTION",
-            last_modified=now - timedelta(hours=1),
         )
         pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
         assert pair.action == SyncAction.UPDATE
@@ -475,7 +474,6 @@ class TestSyncEngine:
             uid="cd-123",
             summary="Old",
             status="NEEDS-ACTION",
-            taskwarrior_uuid="tw-123",
         )
         pair = TaskPair(
             tw_task=tw_task,
@@ -510,7 +508,6 @@ class TestSyncEngine:
             uid="cd-123",
             summary="Updated",
             status="NEEDS-ACTION",
-            taskwarrior_uuid="tw-123",
         )
         pair = TaskPair(
             tw_task=tw_task,
@@ -548,7 +545,6 @@ class TestSyncEngine:
             uid="cd-123",
             summary="Old",
             status="NEEDS-ACTION",
-            taskwarrior_uuid="tw-123",
         )
         pair = TaskPair(
             tw_task=tw_task,
@@ -575,7 +571,6 @@ class TestSyncEngine:
             uid="cd-123",
             summary="Deleted",
             status="CANCELLED",
-            taskwarrior_uuid="tw-123",
         )
         pair = TaskPair(
             tw_task=tw_task,

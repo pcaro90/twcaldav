@@ -16,8 +16,8 @@ def taskwarrior_to_caldav(task: Task) -> VTodo:
     Returns:
         CalDAV VTodo object.
     """
-    # Generate CalDAV UID if needed (based on TaskWarrior UUID)
-    uid = f"tw-{task.uuid}@twcaldav"
+    # Use existing CalDAV UID from UDA if available, otherwise generate new one
+    uid = task.caldav_uid or str(uuid4())
 
     # Map status
     # TaskWarrior: pending, completed, deleted, waiting, recurring
@@ -59,7 +59,6 @@ def taskwarrior_to_caldav(task: Task) -> VTodo:
         categories=categories if categories else None,
         created=task.entry,
         last_modified=task.modified,
-        taskwarrior_uuid=task.uuid,
     )
 
 
@@ -74,13 +73,8 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
     Returns:
         TaskWarrior Task object.
     """
-    # Use TaskWarrior UUID from custom property, or existing task, or generate new
-    if vtodo.taskwarrior_uuid:
-        tw_uuid = vtodo.taskwarrior_uuid
-    elif existing_task:
-        tw_uuid = existing_task.uuid
-    else:
-        tw_uuid = str(uuid4())
+    # Use existing TW UUID if updating, otherwise generate new
+    tw_uuid = existing_task.uuid if existing_task else str(uuid4())
 
     # Map status
     # CalDAV: NEEDS-ACTION, COMPLETED, CANCELLED, IN-PROCESS
@@ -135,6 +129,7 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
         priority=priority,
         tags=tags if tags else None,
         annotations=annotations if annotations else None,
+        caldav_uid=vtodo.uid,
     )
 
 

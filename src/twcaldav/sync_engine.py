@@ -134,6 +134,8 @@ class SyncEngine:
 
         # Collect all tasks from TaskWarrior in mapped projects
         tw_tasks: dict[str, Task] = {}
+        caldav_uid_to_tw_task: dict[str, Task] = {}  # Map CalDAV UID to TW task
+
         for mapping in self.config.mappings:
             project = mapping.taskwarrior_project
             self.logger.debug(f"Loading TaskWarrior tasks from project: {project}")
@@ -144,12 +146,14 @@ class SyncEngine:
             for task in tasks:
                 if task.status != "deleted":
                     tw_tasks[task.uuid] = task
+                    # Build mapping from CalDAV UID to TW task
+                    if task.caldav_uid:
+                        caldav_uid_to_tw_task[task.caldav_uid] = task
 
         self.logger.info(f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects")
 
         # Collect all VTODOs from CalDAV in mapped calendars
         caldav_todos: dict[str, VTodo] = {}
-        tw_uuid_to_caldav_uid: dict[str, str] = {}
         caldav_uid_to_calendar: dict[str, str] = {}  # Map CalDAV UID to calendar ID
 
         for mapping in self.config.mappings:
@@ -162,9 +166,6 @@ class SyncEngine:
                 caldav_uid_to_calendar[todo.uid] = (
                     calendar_id  # Store which calendar this todo is from
                 )
-                # Build reverse mapping from TaskWarrior UUID to CalDAV UID
-                if todo.taskwarrior_uuid:
-                    tw_uuid_to_caldav_uid[todo.taskwarrior_uuid] = todo.uid
 
         self.logger.info(f"Found {len(caldav_todos)} CalDAV todos in mapped calendars")
 
@@ -175,24 +176,33 @@ class SyncEngine:
         task_pairs = []
 
         # Process TaskWarrior tasks
-        processed_tw_uuids: set[str] = set()
-        for tw_uuid, tw_task in tw_tasks.items():
-            processed_tw_uuids.add(tw_uuid)
-
-            # Look for corresponding CalDAV todo
-            caldav_uid = tw_uuid_to_caldav_uid.get(tw_uuid)
-            caldav_todo = caldav_todos.get(caldav_uid) if caldav_uid else None
+        processed_caldav_uids: set[str] = set()
+        for _tw_uuid, tw_task in tw_tasks.items():
+            # Look for corresponding CalDAV todo via UDA
+            caldav_todo = None
+            if tw_task.caldav_uid:
+                caldav_todo = caldav_todos.get(tw_task.caldav_uid)
+                if caldav_todo:
+                    processed_caldav_uids.add(caldav_todo.uid)
 
             pair = self._classify_task_pair(tw_task, caldav_todo)
             task_pairs.append(pair)
 
         # Process CalDAV todos that don't have TaskWarrior counterparts
-        for _caldav_uid, caldav_todo in caldav_todos.items():
-            # Skip if already processed via TaskWarrior
-            if caldav_todo.taskwarrior_uuid in processed_tw_uuids:
+        for caldav_uid, caldav_todo in caldav_todos.items():
+            # Skip if already processed via TaskWarrior UDA
+            if caldav_uid in processed_caldav_uids:
                 continue
 
-            pair = self._classify_task_pair(None, caldav_todo)
+            # Check if there's a TaskWarrior task that references this CalDAV UID
+            # This handles the case where CalDAV todo exists but wasn't found in first loop
+            tw_task = caldav_uid_to_tw_task.get(caldav_uid)
+            if tw_task:
+                # Found correlation - this CalDAV todo belongs to a TaskWarrior task
+                pair = self._classify_task_pair(tw_task, caldav_todo)
+            else:
+                # No TaskWarrior task references this CalDAV todo
+                pair = self._classify_task_pair(None, caldav_todo)
             task_pairs.append(pair)
 
         return task_pairs
@@ -435,6 +445,12 @@ class SyncEngine:
 
                 self.caldav.create_todo(calendar_name, vtodo)
 
+                # Update TaskWarrior task with CalDAV UID
+                self.tw.modify_task(pair.tw_task.uuid, {"caldav_uid": vtodo.uid})
+                self.logger.debug(
+                    f"Set caldav_uid UDA to {vtodo.uid} on task {pair.tw_task.uuid}"
+                )
+
             self.stats.caldav_created += 1
 
         elif pair.direction == SyncDirection.CALDAV_TO_TW:
@@ -513,6 +529,10 @@ class SyncEngine:
                 # Remove uuid and entry from modifications (can't modify these)
                 modifications.pop("uuid", None)
                 modifications.pop("entry", None)
+
+                # Ensure caldav_uid is included in modifications
+                if not modifications.get("caldav_uid"):
+                    modifications["caldav_uid"] = pair.caldav_todo.uid
 
                 self.tw.modify_task(pair.tw_task.uuid, modifications)
 
