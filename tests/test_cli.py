@@ -113,6 +113,7 @@ caldav_calendar = "Work Tasks"
 
     # Mock TaskWarrior
     mock_tw = MagicMock()
+    mock_tw.validate_uda.return_value = True  # UDA is configured
     mock_tw_cls.return_value = mock_tw
 
     # Mock CalDAV client
@@ -203,12 +204,57 @@ caldav_calendar = "Work Tasks"
 def test_main_config_not_found(mock_config_cls, tmp_path):
     """Test handling of missing config file."""
     mock_config_cls.from_file.side_effect = FileNotFoundError("Config not found")
+    config_file = tmp_path / "nonexistent.toml"
 
     # Run main
-    result = main(["-c", str(tmp_path / "nonexistent.toml")])
+    result = main(["-c", str(config_file)])
 
     # Should return error code
     assert result == 1
+
+
+@patch("twcaldav.sync_engine.SyncEngine")
+@patch("twcaldav.caldav_client.CalDAVClient")
+@patch("twcaldav.taskwarrior.TaskWarrior")
+@patch("twcaldav.config.Config")
+def test_main_uda_not_configured(
+    mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
+):
+    """Test handling when UDA is not configured."""
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[caldav]
+url = "https://example.com/caldav"
+username = "user"
+password = "pass"
+
+[[mappings]]
+taskwarrior_project = "work"
+caldav_calendar = "Work Tasks"
+""")
+
+    mock_config = MagicMock()
+    mock_config.caldav.url = "https://example.com/caldav"
+    mock_config.caldav.username = "user"
+    mock_config.caldav.password = "pass"
+    mock_config.sync.delete_tasks = False
+    mock_config.get_mapped_projects.return_value = ["work"]
+    mock_config.get_mapped_calendars.return_value = ["Work Tasks"]
+    mock_config_cls.from_file.return_value = mock_config
+
+    # Mock TaskWarrior with UDA validation returning False
+    mock_tw = MagicMock()
+    mock_tw.validate_uda.return_value = False  # UDA not configured
+    mock_tw_cls.return_value = mock_tw
+
+    # Run main
+    result = main(["-c", str(config_file)])
+
+    # Should return error code
+    assert result == 1
+
+    # Should have called validate_uda
+    mock_tw.validate_uda.assert_called_once_with("caldav_uid")
 
 
 @patch("twcaldav.config.Config")
@@ -316,7 +362,7 @@ caldav_calendar = "Work Tasks"
     # Run main
     result = main(["-c", str(config_file)])
 
-    # Should return error code when there are errors
+    # Should return error code
     assert result == 1
 
 

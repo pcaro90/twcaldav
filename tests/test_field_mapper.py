@@ -178,8 +178,9 @@ class TestCalDAVToTaskWarrior:
         assert task.caldav_uid == "caldav-uid-123"
         assert task.description == "Complete task"
         assert task.status == "pending"
-        assert task.project == "work"
-        assert task.tags == ["urgent"]
+        # Project is not set from categories - it will be set by sync engine
+        assert task.project is None
+        assert task.tags == ["work", "urgent"]
         assert task.priority == "H"
 
     def test_status_mapping(self):
