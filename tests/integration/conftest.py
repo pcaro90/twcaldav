@@ -105,7 +105,7 @@ def clean_test_environment():
     # Clean before test
     clear_taskwarrior(taskdata, TW_PROJECT)
 
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     if principal:
         calendar = get_calendar(principal, CALDAV_CALENDAR_ID)
         if calendar:
@@ -146,7 +146,7 @@ confirmation=off
         )
 
     # Clear CalDAV to start fresh for multi-client tests
-    client, principal = get_caldav_client()
+    _client, principal = get_caldav_client()
     if principal:
         calendar = get_calendar(principal, CALDAV_CALENDAR_ID)
         if calendar:

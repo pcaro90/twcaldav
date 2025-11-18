@@ -11,7 +11,6 @@ from tests.integration.helpers import (
     get_caldav_client,
     get_calendar,
     get_tasks,
-    get_todo_property,
     modify_todo,
     run_sync,
 )

@@ -140,7 +140,7 @@ def test_tw_to_caldav_create_completed(clean_test_environment):
 
     # Note: calendar.todos() might not return completed todos
     # This test verifies the sync doesn't fail
-    todos = get_todos(calendar)
+    get_todos(calendar)
     # Completed tasks may or may not appear depending on CalDAV server behavior
     # The important thing is that sync succeeded without errors
 

@@ -1,5 +1,6 @@
 """Helper functions for integration tests."""
 
+import contextlib
 import json
 import os
 import subprocess
@@ -91,7 +92,7 @@ def create_task(description: str, taskdata: str | None = None, **kwargs) -> dict
         else:
             args.append(f"+{tags}")
 
-    _stdout, stderr, code = run_task_command(args, taskdata=taskdata)
+    _stdout, _stderr, code = run_task_command(args, taskdata=taskdata)
 
     if code != 0:
         return None
@@ -488,7 +489,5 @@ def clear_caldav(calendar: caldav.Calendar):
     """
     todos = get_todos(calendar)
     for todo in todos:
-        try:
+        with contextlib.suppress(Exception):
             todo.delete()
-        except Exception:
-            pass

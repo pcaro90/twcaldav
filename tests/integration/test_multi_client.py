@@ -1,4 +1,4 @@
-"""Integration tests for multi-client synchronization (TaskWarrior A ↔ CalDAV ↔ TaskWarrior B)."""
+"""Integration tests for multi-client synchronization (TW A ↔ CalDAV ↔ TW B)."""
 
 import time
 

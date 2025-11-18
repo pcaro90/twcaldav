@@ -207,16 +207,15 @@ def _format_description_with_annotations(task: Task) -> str | None:
         # Ensure entry is in TW format (YYYYMMDDTHHMMSSµZ)
         if isinstance(entry, datetime):
             entry = entry.strftime("%Y%m%dT%H%M%SZ")
-        elif isinstance(entry, str):
-            # If it's already in TW format, use as-is
-            # Otherwise try to parse and convert
-            if not ("T" in entry and len(entry) >= 16):
-                try:
-                    dt = datetime.fromisoformat(entry.replace("Z", "+00:00"))
-                    entry = dt.strftime("%Y%m%dT%H%M%SZ")
-                except (ValueError, AttributeError):
-                    # Skip annotations without valid timestamp
-                    continue
+        # If it's already in TW format, use as-is
+        # Otherwise try to parse and convert
+        elif isinstance(entry, str) and not ("T" in entry and len(entry) >= 16):
+            try:
+                dt = datetime.fromisoformat(entry)
+                entry = dt.strftime("%Y%m%dT%H%M%SZ")
+            except (ValueError, AttributeError):
+                # Skip annotations without valid timestamp
+                continue
 
         if entry and desc:
             lines.append(f"{entry}|{desc}")
@@ -277,12 +276,12 @@ def _parse_description_for_annotations(
                 timestamp = timestamp.strip()
                 desc = desc.strip()
 
-                # Validate timestamp format (basic check: contains T and reasonable length)
+                # Validate timestamp format
                 if "T" in timestamp and 15 <= len(timestamp) <= 17:
                     annotations.append({"entry": timestamp, "description": desc})
                 else:
                     logger.warning(
-                        f"Skipping annotation with invalid timestamp format: {timestamp}"
+                        f"Skipping annotation with invalid timestamp: {timestamp}"
                     )
             else:
                 # Malformed line (no pipe delimiter)
