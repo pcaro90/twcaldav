@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: apt install docker-compose -y
+        run: sudo apt install docker-compose -y
 
       - name: Run integration tests with Docker Compose
         run: bash scripts/run-integration-tests.sh
