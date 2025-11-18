@@ -194,7 +194,8 @@ class SyncEngine:
                 continue
 
             # Check if there's a TaskWarrior task that references this CalDAV UID
-            # This handles the case where CalDAV todo exists but wasn't found in first loop
+            # This handles the case where CalDAV todo exists but wasn't found in the
+            # first loop
             tw_task = caldav_uid_to_tw_task.get(caldav_uid)
             if tw_task:
                 # Found correlation - this CalDAV todo belongs to a TaskWarrior task

@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import caldav
@@ -648,7 +648,7 @@ def test_caldav_to_tw_modify():
                 # Update LAST-MODIFIED to ensure sync engine detects the change
                 if "last-modified" in component:
                     del component["last-modified"]
-                component.add("last-modified", datetime.now(timezone.utc))
+                component.add("last-modified", datetime.now(UTC))
                 break
 
         if not original_summary:
@@ -867,7 +867,7 @@ def test_multi_client_create():
     if len(todos_after_sync) != 1:
         print_error(f"Expected 1 todo in CalDAV, found {len(todos_after_sync)}")
         return False
-    print_success(f"✓ Task synced to CalDAV")
+    print_success("✓ Task synced to CalDAV")
 
     # Client 2: Sync from CalDAV
     print_info("\n[CLIENT 2] Syncing from CalDAV...")
@@ -912,7 +912,7 @@ def test_multi_client_modify():
     ):
         print_error("Failed to modify task in client 2")
         return False
-    print_success(f"[CLIENT 2] Modified task")
+    print_success("[CLIENT 2] Modified task")
 
     # Client 2: Sync to CalDAV
     print_info("\n[CLIENT 2] Syncing to CalDAV...")
@@ -959,7 +959,7 @@ def test_multi_client_delete():
     if not delete_client_task(TASKDATA_CLIENT1, task["uuid"]):
         print_error("Failed to delete task in client 1")
         return False
-    print_success(f"[CLIENT 1] Deleted task")
+    print_success("[CLIENT 1] Deleted task")
 
     # Client 1: Sync to CalDAV
     print_info("\n[CLIENT 1] Syncing to CalDAV...")
