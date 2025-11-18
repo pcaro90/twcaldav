@@ -534,8 +534,12 @@ class SyncEngine:
 
             if not self.dry_run:
                 # Convert CalDAV todo to TaskWarrior task (preserving UUID)
-                task = caldav_to_taskwarrior(pair.caldav_todo)
+                # Pass existing task to enable annotation deduplication
+                task = caldav_to_taskwarrior(
+                    pair.caldav_todo, existing_task=pair.tw_task
+                )
                 task.uuid = pair.tw_task.uuid  # Preserve TaskWarrior UUID
+                task.entry = pair.tw_task.entry  # Preserve entry timestamp
 
                 # Set the project based on which calendar this todo came from
                 calendar_id = self.caldav_uid_to_calendar.get(pair.caldav_todo.uid)
@@ -544,17 +548,13 @@ class SyncEngine:
                     if project:
                         task.project = project
 
-                # Build modifications dict from task
-                modifications = task.to_dict()
-                # Remove uuid and entry from modifications (can't modify these)
-                modifications.pop("uuid", None)
-                modifications.pop("entry", None)
+                # Ensure caldav_uid is set
+                if not task.caldav_uid:
+                    task.caldav_uid = pair.caldav_todo.uid
 
-                # Ensure caldav_uid is included in modifications
-                if not modifications.get("caldav_uid"):
-                    modifications["caldav_uid"] = pair.caldav_todo.uid
-
-                self.tw.modify_task(pair.tw_task.uuid, modifications)
+                # Use import_tasks to update - this properly handles all fields
+                # including annotations, unlike modify_task
+                self.tw.import_tasks([task])
 
             self.stats.tw_updated += 1
 

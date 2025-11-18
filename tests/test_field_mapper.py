@@ -242,18 +242,21 @@ class TestCalDAVToTaskWarrior:
             summary="Test",
             description=(
                 "--- TaskWarrior Annotations ---\n"
-                "[2024-11-17 10:30:00] First note\n"
-                "[2024-11-17 11:00:00] Second note"
+                "20241117T103000Z|First note\n"
+                "20241117T110000Z|Second note"
             ),
             created=datetime.now(UTC),
         )
 
         task = caldav_to_taskwarrior(vtodo)
 
-        assert task.description == ""
+        # When description only contains annotations, use summary as description
+        assert task.description == "Test"
         assert task.annotations is not None
         assert len(task.annotations) == 2
+        assert task.annotations[0]["entry"] == "20241117T103000Z"
         assert task.annotations[0]["description"] == "First note"
+        assert task.annotations[1]["entry"] == "20241117T110000Z"
         assert task.annotations[1]["description"] == "Second note"
 
     def test_preserve_existing_task_entry(self):
@@ -321,3 +324,101 @@ class TestCalDAVToTaskWarrior:
         assert converted_task.tags == original_task.tags
         assert converted_task.priority == original_task.priority
         assert converted_task.due == original_task.due
+
+    def test_annotation_deduplication(self):
+        """Test that annotations are deduplicated when merging."""
+        # Create existing task with annotations
+        existing_task = Task(
+            uuid="test-uuid",
+            description="Test task",
+            status="pending",
+            entry=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
+            annotations=[
+                {"entry": "20241117T103000Z", "description": "Existing note 1"},
+                {"entry": "20241117T110000Z", "description": "Existing note 2"},
+            ],
+        )
+
+        # Create VTodo with overlapping and new annotations
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Test task",
+            description=(
+                "--- TaskWarrior Annotations ---\n"
+                "20241117T103000Z|Existing note 1\n"  # Duplicate
+                "20241117T120000Z|New note 3"  # New
+            ),
+            created=datetime.now(UTC),
+        )
+
+        # Convert with existing task (should merge and deduplicate)
+        task = caldav_to_taskwarrior(vtodo, existing_task=existing_task)
+
+        # Should have 3 annotations total (2 existing + 1 new, no duplicate)
+        assert task.annotations is not None
+        assert len(task.annotations) == 3
+        assert task.annotations[0]["description"] == "Existing note 1"
+        assert task.annotations[1]["description"] == "Existing note 2"
+        assert task.annotations[2]["description"] == "New note 3"
+
+    def test_annotation_with_pipe_in_description(self):
+        """Test annotations with pipe character in description."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Test",
+            description=(
+                "--- TaskWarrior Annotations ---\n"
+                "20241117T103000Z|Check API | POST /users"
+            ),
+            created=datetime.now(UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.annotations is not None
+        assert len(task.annotations) == 1
+        # Description should include the pipe after split on first pipe
+        assert task.annotations[0]["description"] == "Check API | POST /users"
+
+    def test_malformed_annotation_skipped(self):
+        """Test that malformed annotations are skipped with warning."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Test",
+            description=(
+                "--- TaskWarrior Annotations ---\n"
+                "20241117T103000Z|Valid note\n"
+                "Invalid line without pipe\n"  # Malformed
+                "BADTIMESTAMP|Another note\n"  # Invalid timestamp
+                "20241117T110000Z|Another valid note"
+            ),
+            created=datetime.now(UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        # Should only have 2 valid annotations
+        assert task.annotations is not None
+        assert len(task.annotations) == 2
+        assert task.annotations[0]["description"] == "Valid note"
+        assert task.annotations[1]["description"] == "Another valid note"
+
+    def test_user_description_with_annotations(self):
+        """Test CalDAV description with user text and annotations."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Test",
+            description=(
+                "Some user description text\n"
+                "--- TaskWarrior Annotations ---\n"
+                "20241117T103000Z|Note 1"
+            ),
+            created=datetime.now(UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        # User description is extracted but not used (TW uses summary)
+        assert task.description == "Some user description text"
+        assert task.annotations is not None
+        assert len(task.annotations) == 1

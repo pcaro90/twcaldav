@@ -7,6 +7,53 @@ from twcaldav.caldav_client import VTodo
 from twcaldav.taskwarrior import Task
 
 
+def _annotation_fingerprint(annotation: dict) -> str:
+    """Create unique fingerprint for annotation deduplication.
+
+    Combines timestamp (entry) and description to uniquely identify an annotation.
+
+    Args:
+        annotation: Annotation dict with 'entry' and 'description' keys.
+
+    Returns:
+        Fingerprint string in format "TIMESTAMP:DESCRIPTION".
+    """
+    entry = annotation.get("entry", "")
+    description = annotation.get("description", "")
+    return f"{entry}:{description}"
+
+
+def _merge_annotations(
+    existing_annotations: list[dict], new_annotations: list[dict]
+) -> list[dict]:
+    """Merge annotations, avoiding duplicates.
+
+    Preserves all existing annotations and adds new annotations that don't
+    already exist (based on fingerprint matching).
+
+    Args:
+        existing_annotations: Current TaskWarrior task annotations.
+        new_annotations: New annotations from CalDAV.
+
+    Returns:
+        Combined list with no duplicates (existing preserved, new added).
+    """
+    # Create fingerprints of existing annotations
+    existing_fingerprints = {
+        _annotation_fingerprint(ann) for ann in existing_annotations
+    }
+
+    # Start with all existing annotations
+    merged = list(existing_annotations)
+
+    # Add new annotations that don't exist
+    for ann in new_annotations:
+        if _annotation_fingerprint(ann) not in existing_fingerprints:
+            merged.append(ann)
+
+    return merged
+
+
 def taskwarrior_to_caldav(task: Task) -> VTodo:
     """Convert TaskWarrior task to CalDAV VTodo.
 
@@ -98,11 +145,21 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
     # Parse description for annotations
     # If no description field, use summary as description
     desc_field = vtodo.description if vtodo.description else None
-    description, annotations = _parse_description_for_annotations(desc_field)
+    description, new_annotations = _parse_description_for_annotations(desc_field)
 
-    # If we got empty description from parsing and no annotations, use summary
-    if not description and not annotations:
+    # If we got empty description from parsing, use summary
+    # (annotations are stored separately in TaskWarrior)
+    if not description:
         description = vtodo.summary
+
+    # Merge annotations if existing_task provided (deduplication)
+    if existing_task and existing_task.annotations:
+        annotations = _merge_annotations(
+            existing_annotations=existing_task.annotations,
+            new_annotations=new_annotations or [],
+        )
+    else:
+        annotations = new_annotations
 
     # Map categories to tags (project is not synced via categories)
     # Project is determined by the calendar mapping configuration
@@ -127,39 +184,46 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
 
 
 def _format_description_with_annotations(task: Task) -> str | None:
-    """Format task description with annotations for CalDAV.
+    """Format task annotations for CalDAV description field.
 
-    Annotations are appended to the description with special markers.
+    Uses pipe-delimited format: TIMESTAMP|DESCRIPTION
+    Where TIMESTAMP is TaskWarrior format (YYYYMMDDTHHMMSSµZ).
 
     Args:
         task: TaskWarrior Task object.
 
     Returns:
-        Formatted description string, or None if no description/annotations.
+        Formatted description string, or None if no annotations.
     """
     if not task.annotations:
         return None
 
-    lines = []
-    lines.append("--- TaskWarrior Annotations ---")
+    lines = ["--- TaskWarrior Annotations ---"]
 
     for annotation in task.annotations:
         entry = annotation.get("entry", "")
         desc = annotation.get("description", "")
-        # Format: [timestamp] description
-        if entry:
-            # Parse timestamp if it's a string
-            if isinstance(entry, str):
+
+        # Ensure entry is in TW format (YYYYMMDDTHHMMSSµZ)
+        if isinstance(entry, datetime):
+            entry = entry.strftime("%Y%m%dT%H%M%SZ")
+        elif isinstance(entry, str):
+            # If it's already in TW format, use as-is
+            # Otherwise try to parse and convert
+            if not ("T" in entry and len(entry) >= 16):
                 try:
-                    dt = datetime.fromisoformat(entry)
-                    timestamp = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    dt = datetime.fromisoformat(entry.replace("Z", "+00:00"))
+                    entry = dt.strftime("%Y%m%dT%H%M%SZ")
                 except (ValueError, AttributeError):
-                    timestamp = entry
-            else:
-                timestamp = entry.strftime("%Y-%m-%d %H:%M:%S")
-            lines.append(f"[{timestamp}] {desc}")
-        else:
-            lines.append(desc)
+                    # Skip annotations without valid timestamp
+                    continue
+
+        if entry and desc:
+            lines.append(f"{entry}|{desc}")
+
+    # If only the header, return None
+    if len(lines) == 1:
+        return None
 
     return "\n".join(lines)
 
@@ -169,6 +233,9 @@ def _parse_description_for_annotations(
 ) -> tuple[str, list[dict] | None]:
     """Parse CalDAV description to extract annotations.
 
+    Parses pipe-delimited format: TIMESTAMP|DESCRIPTION
+    Where TIMESTAMP is TaskWarrior format (YYYYMMDDTHHMMSSµZ).
+
     Args:
         description: CalDAV description field.
 
@@ -177,6 +244,10 @@ def _parse_description_for_annotations(
         User description is empty string if only annotations exist.
         Annotations list is None if no annotations found.
     """
+    from twcaldav.logger import get_logger
+
+    logger = get_logger()
+
     if not description:
         return "", None
 
@@ -199,22 +270,22 @@ def _parse_description_for_annotations(
             if not line:
                 continue
 
-            # Parse format: [timestamp] description
-            if line.startswith("[") and "]" in line:
-                end_bracket = line.index("]")
-                timestamp = line[1:end_bracket]
-                desc = line[end_bracket + 1 :].strip()
+            # Parse format: TIMESTAMP|DESCRIPTION
+            if "|" in line:
+                # Split on first pipe only (description may contain pipes)
+                timestamp, desc = line.split("|", 1)
+                timestamp = timestamp.strip()
+                desc = desc.strip()
 
-                # Convert timestamp back to TaskWarrior format
-                try:
-                    dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-                    entry = dt.strftime("%Y%m%dT%H%M%SZ")
-                except ValueError:
-                    entry = timestamp
-
-                annotations.append({"entry": entry, "description": desc})
+                # Validate timestamp format (basic check: contains T and reasonable length)
+                if "T" in timestamp and 15 <= len(timestamp) <= 17:
+                    annotations.append({"entry": timestamp, "description": desc})
+                else:
+                    logger.warning(
+                        f"Skipping annotation with invalid timestamp format: {timestamp}"
+                    )
             else:
-                # Annotation without timestamp
-                annotations.append({"description": line})
+                # Malformed line (no pipe delimiter)
+                logger.warning(f"Skipping malformed annotation line: {line}")
 
     return user_desc, annotations if annotations else None

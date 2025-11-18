@@ -527,9 +527,12 @@ class TestSyncEngine:
 
         sync_engine._execute_update(pair)
 
-        mock_convert.assert_called_once_with(caldav_todo)
+        # Should pass existing_task for annotation deduplication
+        mock_convert.assert_called_once_with(caldav_todo, existing_task=tw_task)
         assert mock_task.uuid == "tw-123"  # UUID should be preserved
-        mock_tw.modify_task.assert_called_once()
+        assert mock_task.entry == tw_task.entry  # Entry should be preserved
+        # Should use import_tasks instead of modify_task for proper annotation handling
+        mock_tw.import_tasks.assert_called_once()
         assert sync_engine.stats.tw_updated == 1
 
     def test_execute_delete_tw_to_caldav(self, sync_engine, mock_caldav):

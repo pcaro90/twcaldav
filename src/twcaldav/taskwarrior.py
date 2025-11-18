@@ -174,7 +174,16 @@ class TaskWarrior:
             return result.stdout
         except subprocess.CalledProcessError as e:
             if not check_binary:
-                self.logger.error(f"TaskWarrior command failed: {e.stderr or e.stdout}")
+                error_msg = f"TaskWarrior command failed with exit code {e.returncode}"
+                if e.stderr:
+                    error_msg += f"\nSTDERR: {e.stderr}"
+                if e.stdout:
+                    error_msg += f"\nSTDOUT: {e.stdout}"
+                if input_data:
+                    error_msg += (
+                        f"\nINPUT DATA: {input_data[:500]}..."  # First 500 chars
+                    )
+                self.logger.error(error_msg)
             raise TaskWarriorError(
                 f"TaskWarrior command failed: {e.stderr or e.stdout}"
             ) from e
@@ -250,7 +259,8 @@ class TaskWarrior:
 
         tasks_json = json.dumps([task.to_dict() for task in tasks])
 
-        self.logger.debug(f"Importing {len(tasks)} tasks")
+        self.logger.info(f"Importing {len(tasks)} tasks")
+        self.logger.info(f"JSON being imported (first 500 chars): {tasks_json[:500]}")
         self._run_command(["import"], input_data=tasks_json)
         self.logger.info(f"Imported {len(tasks)} tasks")
 
