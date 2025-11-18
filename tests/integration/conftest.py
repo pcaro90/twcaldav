@@ -1,8 +1,18 @@
 """Pytest configuration for integration tests."""
 
 import os
+from pathlib import Path
 
 import pytest
+
+from tests.integration.helpers import (
+    CALDAV_CALENDAR_ID,
+    TW_PROJECT,
+    clear_caldav,
+    clear_taskwarrior,
+    get_caldav_client,
+    get_calendar,
+)
 
 
 def pytest_configure(config):
@@ -34,59 +44,64 @@ def check_integration_environment():
         )
 
 
-@pytest.fixture(scope="session")
-def caldav_url():
-    """Get CalDAV URL from environment."""
-    return os.getenv("CALDAV_URL", "http://localhost:5232/test-user/")
+@pytest.fixture(scope="function")
+def clean_test_environment():
+    """Clean both TaskWarrior and CalDAV before each test.
 
-
-@pytest.fixture(scope="session")
-def caldav_username():
-    """Get CalDAV username from environment."""
-    return os.getenv("CALDAV_USERNAME", "test-user")
-
-
-@pytest.fixture(scope="session")
-def caldav_password():
-    """Get CalDAV password from environment."""
-    return os.getenv("CALDAV_PASSWORD", "test-pass")
-
-
-@pytest.fixture(scope="session")
-def caldav_calendar_id():
-    """Get CalDAV calendar ID from environment."""
-    return os.getenv("CALDAV_CALENDAR_ID", "test-calendar")
-
-
-@pytest.fixture(scope="session")
-def tw_project():
-    """Get TaskWarrior project name from environment."""
-    return os.getenv("TW_PROJECT", "test")
-
-
-@pytest.fixture(scope="session")
-def taskdata():
-    """Get TaskWarrior data directory from environment."""
-    return os.getenv("TASKDATA", None)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def clear_test_data_once():
-    """Clear test data once at the start of the test session.
-
-    Integration tests are designed to run sequentially with state
-    carrying over between tests (e.g., test_caldav_to_tw_create
-    expects data from test_tw_to_caldav_create).
-
-    This fixture runs once at the beginning to ensure a clean starting state.
+    This fixture ensures each test starts with a clean slate.
     """
-    # Import here to avoid circular imports
-    from tests.integration.test_e2e import clear_test_data
+    taskdata = os.getenv("TASKDATA")
 
-    # Clear data before test session
-    clear_test_data()
+    # Clean before test
+    clear_taskwarrior(taskdata, TW_PROJECT)
+
+    client, principal = get_caldav_client()
+    if principal:
+        calendar = get_calendar(principal, CALDAV_CALENDAR_ID)
+        if calendar:
+            clear_caldav(calendar)
 
     yield
 
-    # Optional: Clear after all tests complete
-    # clear_test_data()
+    # Optional: clean after test (can be commented out for debugging)
+    # clear_taskwarrior(taskdata, TW_PROJECT)
+    # if principal and calendar:
+    #     clear_caldav(calendar)
+
+
+@pytest.fixture(scope="function")
+def multi_client_setup(tmp_path):
+    """Setup two clean TaskWarrior clients for multi-client tests.
+
+    Returns:
+        Tuple of (client1_path, client2_path) as strings.
+    """
+    client1_path = tmp_path / "tw_client1"
+    client2_path = tmp_path / "tw_client2"
+
+    # Create directories
+    client1_path.mkdir(parents=True, exist_ok=True)
+    client2_path.mkdir(parents=True, exist_ok=True)
+
+    # Setup UDA configuration for both clients
+    for path in [client1_path, client2_path]:
+        # Create taskrc with UDA config
+        taskrc = path / "taskrc"
+        taskrc.write_text(
+            f"""data.location={path}
+uda.caldav_uid.type=string
+uda.caldav_uid.label=CalDAV UID
+confirmation=off
+"""
+        )
+
+    # Clear CalDAV to start fresh for multi-client tests
+    client, principal = get_caldav_client()
+    if principal:
+        calendar = get_calendar(principal, CALDAV_CALENDAR_ID)
+        if calendar:
+            clear_caldav(calendar)
+
+    yield str(client1_path), str(client2_path)
+
+    # Cleanup is handled by pytest's tmp_path fixture

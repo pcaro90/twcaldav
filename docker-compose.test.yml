@@ -56,7 +56,7 @@ services:
         echo '=== Setting up Radicale test data ===' &&
         bash scripts/setup-radicale-test-data.sh &&
         echo '=== Running integration tests ===' &&
-        uv run pytest tests/integration/test_e2e.py -v --tb=short
+        uv run pytest tests/integration -v --tb=short
       "
 
 networks:
