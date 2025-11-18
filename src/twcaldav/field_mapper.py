@@ -42,12 +42,8 @@ def taskwarrior_to_caldav(task: Task) -> VTodo:
     # Format description with annotations
     description = _format_description_with_annotations(task)
 
-    # Combine tags and project into categories
-    categories = []
-    if task.project:
-        categories.append(task.project)
-    if task.tags:
-        categories.extend(task.tags)
+    # Map tags to categories (excluding project - project is managed by mapping config)
+    categories = task.tags if task.tags else None
 
     return VTodo(
         uid=uid,
@@ -56,7 +52,7 @@ def taskwarrior_to_caldav(task: Task) -> VTodo:
         description=description,
         due=task.due,
         priority=priority,
-        categories=categories if categories else None,
+        categories=categories,
         created=task.entry,
         last_modified=task.modified,
     )
@@ -108,12 +104,9 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
     if not description and not annotations:
         description = vtodo.summary
 
-    # Extract project from categories (first category is project)
-    project = None
-    tags = []
-    if vtodo.categories:
-        project = vtodo.categories[0]
-        tags = vtodo.categories[1:] if len(vtodo.categories) > 1 else []
+    # Map categories to tags (project is not synced via categories)
+    # Project is determined by the calendar mapping configuration
+    tags = vtodo.categories if vtodo.categories else []
 
     # Preserve entry timestamp from existing task or use created
     entry = existing_task.entry if existing_task else (vtodo.created or datetime.now())
@@ -124,7 +117,7 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
         status=status,
         entry=entry,
         modified=vtodo.last_modified or datetime.now(),
-        project=project,
+        project=None,  # Project will be set by sync engine based on calendar mapping
         due=vtodo.due,
         priority=priority,
         tags=tags if tags else None,

@@ -50,9 +50,8 @@ class TestTaskWarriorToCalDAV:
         assert vtodo.status == "NEEDS-ACTION"
         assert vtodo.due == datetime(2024, 11, 20, 12, 0, 0, tzinfo=UTC)
         assert vtodo.priority == 1  # H -> 1
-        assert vtodo.categories is not None
-        assert "work" in vtodo.categories
-        assert "important" in vtodo.categories
+        # Project is not synced to categories - only tags are synced
+        assert vtodo.categories == ["important", "urgent"]
 
     def test_status_mapping(self):
         """Test status mapping."""
@@ -125,8 +124,8 @@ class TestTaskWarriorToCalDAV:
         assert "First note" in vtodo.description
         assert "Second note" in vtodo.description
 
-    def test_categories_from_project_and_tags(self):
-        """Test categories include project and tags."""
+    def test_categories_from_tags_only(self):
+        """Test categories include only tags (not project)."""
         task = Task(
             uuid="test-uuid",
             description="Test",
@@ -138,7 +137,8 @@ class TestTaskWarriorToCalDAV:
 
         vtodo = taskwarrior_to_caldav(task)
 
-        assert vtodo.categories == ["work", "urgent", "important"]
+        # Project is not synced to categories - only tags
+        assert vtodo.categories == ["urgent", "important"]
 
 
 class TestCalDAVToTaskWarrior:
@@ -276,8 +276,8 @@ class TestCalDAVToTaskWarrior:
         assert task.entry == original_entry
         assert task.uuid == "existing-uuid"
 
-    def test_project_from_first_category(self):
-        """Test extracting project from first category."""
+    def test_categories_to_tags_only(self):
+        """Test categories are mapped to tags only (not project)."""
         vtodo = VTodo(
             uid="test-uid",
             summary="Test",
@@ -287,8 +287,9 @@ class TestCalDAVToTaskWarrior:
 
         task = caldav_to_taskwarrior(vtodo)
 
-        assert task.project == "work"
-        assert task.tags == ["urgent", "important"]
+        # Project is not set from categories - it will be set by sync engine
+        assert task.project is None
+        assert task.tags == ["work", "urgent", "important"]
 
     def test_round_trip_conversion(self):
         """Test converting back and forth preserves data."""
@@ -300,6 +301,7 @@ class TestCalDAVToTaskWarrior:
             project="work",
             priority="H",
             due=datetime(2024, 11, 20, 12, 0, 0, tzinfo=UTC),
+            tags=["important"],
         )
 
         # Convert to CalDAV
@@ -312,6 +314,9 @@ class TestCalDAVToTaskWarrior:
         assert converted_task.uuid == original_task.uuid
         assert converted_task.description == original_task.description
         assert converted_task.status == original_task.status
-        assert converted_task.project == original_task.project
+        # Project is not synced via CalDAV - it will be None after round trip
+        # The sync engine sets project based on calendar mapping
+        assert converted_task.project is None
+        assert converted_task.tags == original_task.tags
         assert converted_task.priority == original_task.priority
         assert converted_task.due == original_task.due

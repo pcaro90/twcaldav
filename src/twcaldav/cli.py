@@ -130,6 +130,21 @@ def main(argv: list[str] | None = None) -> int:
         logger.debug("Initializing TaskWarrior client")
         tw = TaskWarrior()
 
+        # Validate required UDA
+        logger.debug("Validating TaskWarrior UDA configuration")
+        if not tw.validate_uda("caldav_uid"):
+            logger.error(
+                "Required UDA 'caldav_uid' is not configured in TaskWarrior.\n"
+                "\n"
+                "Please add the following to your ~/.taskrc file:\n"
+                "\n"
+                "  uda.caldav_uid.type=string\n"
+                "  uda.caldav_uid.label=CalDAV UID\n"
+                "\n"
+                "Then run 'task udas' to verify the configuration."
+            )
+            return 1
+
         logger.debug("Connecting to CalDAV server")
         caldav_client = CalDAVClient(
             url=config.caldav.url,

@@ -369,3 +369,22 @@ class TaskWarrior:
         """
         tasks = self.export_tasks(filter_args=[f"caldav_uid:{caldav_uid}"])
         return tasks[0] if tasks else None
+
+    def validate_uda(self, uda_name: str) -> bool:
+        """Validate that a UDA is configured in TaskWarrior.
+
+        Args:
+            uda_name: Name of the UDA to check (e.g., "caldav_uid").
+
+        Returns:
+            True if UDA is configured, False otherwise.
+
+        Raises:
+            TaskWarriorError: If command fails.
+        """
+        try:
+            result = self._run_command(["udas"])
+            # Check if the UDA name appears in the output
+            return uda_name in result
+        except TaskWarriorError:
+            return False
