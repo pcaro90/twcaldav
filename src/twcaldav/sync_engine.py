@@ -140,15 +140,14 @@ class SyncEngine:
             project = mapping.taskwarrior_project
             self.logger.debug(f"Loading TaskWarrior tasks from project: {project}")
 
-            # Export all tasks for this project (all statuses)
+            # Export all tasks for this project (all statuses including deleted)
+            # We need deleted tasks to detect deletions and sync them to CalDAV
             tasks = self.tw.export_tasks(project=project)
-            # Filter out deleted tasks - we don't sync those
             for task in tasks:
-                if task.status != "deleted":
-                    tw_tasks[task.uuid] = task
-                    # Build mapping from CalDAV UID to TW task
-                    if task.caldav_uid:
-                        caldav_uid_to_tw_task[task.caldav_uid] = task
+                tw_tasks[task.uuid] = task
+                # Build mapping from CalDAV UID to TW task (including deleted ones)
+                if task.caldav_uid:
+                    caldav_uid_to_tw_task[task.caldav_uid] = task
 
         self.logger.info(f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects")
 
@@ -239,6 +238,26 @@ class SyncEngine:
                     direction=None,
                     reason="TaskWarrior task deleted, no CalDAV todo to remove",
                 )
+
+            # Check if TW task has caldav_uid - if so, CalDAV todo was deleted
+            if tw_task.caldav_uid:
+                if self.config.sync.delete_tasks:
+                    return TaskPair(
+                        tw_task=tw_task,
+                        caldav_todo=None,
+                        action=SyncAction.DELETE,
+                        direction=SyncDirection.CALDAV_TO_TW,
+                        reason="CalDAV todo deleted externally",
+                    )
+                return TaskPair(
+                    tw_task=tw_task,
+                    caldav_todo=None,
+                    action=SyncAction.SKIP,
+                    direction=None,
+                    reason="CalDAV todo deleted externally, but deletion disabled",
+                )
+
+            # New TaskWarrior task without caldav_uid
             return TaskPair(
                 tw_task=tw_task,
                 caldav_todo=None,
@@ -544,9 +563,12 @@ class SyncEngine:
         Args:
             pair: Task pair with DELETE action.
         """
-        assert pair.tw_task is not None and pair.caldav_todo is not None
+        assert pair.tw_task is not None  # TW task must always exist for DELETE
 
         if pair.direction == SyncDirection.TW_TO_CALDAV:
+            assert (
+                pair.caldav_todo is not None
+            )  # CalDAV todo must exist for TW→CalDAV delete
             self.logger.info(
                 f"Deleting CalDAV todo (TaskWarrior task deleted): "
                 f"{pair.caldav_todo.uid}"
@@ -569,8 +591,14 @@ class SyncEngine:
             self.stats.caldav_deleted += 1
 
         elif pair.direction == SyncDirection.CALDAV_TO_TW:
+            # CalDAV todo may be None if it was deleted externally (not just cancelled)
+            caldav_info = (
+                f" (caldav_uid: {pair.tw_task.caldav_uid})"
+                if pair.tw_task.caldav_uid
+                else ""
+            )
             self.logger.info(
-                f"Deleting TaskWarrior task (CalDAV todo cancelled): "
+                f"Deleting TaskWarrior task (CalDAV todo deleted){caldav_info}: "
                 f"{pair.tw_task.uuid}"
             )
 
