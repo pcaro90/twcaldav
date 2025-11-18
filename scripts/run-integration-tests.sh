@@ -29,6 +29,7 @@ EXIT_CODE=$?
 echo ""
 echo "Cleaning up containers..."
 docker-compose -f docker-compose.test.yml down -v
+docker-compose -f docker-compose.test.yml rm -fsv
 
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""

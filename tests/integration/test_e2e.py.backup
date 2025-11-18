@@ -102,15 +102,10 @@ def create_tw_task(description, **kwargs):
         print_error(f"Failed to create task: {stderr}")
         return None
 
-    # Extract UUID from output by finding the task with matching description
+    # Extract UUID from output
     tasks = get_tw_tasks()
     if tasks:
-        # Find the task we just created by description
-        matching = [t for t in tasks if t.get("description") == description]
-        if matching:
-            # If multiple matches, return the one with latest entry
-            return max(matching, key=lambda t: t.get("entry", ""))
-        # Fallback: return the most recently created task
+        # Return the most recently created task
         return max(tasks, key=lambda t: t.get("entry", ""))
     return None
 
@@ -469,29 +464,7 @@ def clear_test_data():
             print_success(f"Cleared {count} todos from CalDAV")
 
 
-@pytest.mark.integration
-def test_01_uda_configuration():
-    """Test that the required UDA (caldav_uid) is properly configured."""
-    print_section("PHASE 0: UDA Configuration")
-
-    stdout, stderr, code = run_task_command(["udas"])
-
-    if code != 0:
-        print_error(f"Failed to get UDAs: {stderr}")
-        pytest.fail("Failed to get UDAs: {stderr}")
-
-    # Check if caldav_uid UDA is defined
-    if "caldav_uid" in stdout:
-        print_success("✓ caldav_uid UDA is configured")
-        print_info(f"UDA output:\n{stdout[:200]}")
-    else:
-        print_error("caldav_uid UDA is not configured")
-        print_info(f"Available UDAs:\n{stdout}")
-        pytest.fail("caldav_uid UDA is not configured")
-
-
-@pytest.mark.integration
-def test_02_verify_initial_state():
+def verify_initial_state():
     """Verify both TaskWarrior and CalDAV are empty."""
     print_section("PHASE 1: Verify Initial State")
 
@@ -501,27 +474,28 @@ def test_02_verify_initial_state():
         print_success("TaskWarrior test project is empty")
     else:
         print_error(f"TaskWarrior has {len(tasks)} tasks, expected 0")
-        pytest.fail("TaskWarrior has {len(tasks)} tasks, expected 0")
+        return False
 
     # Check CalDAV
     _client, principal = get_caldav_client()
     if not principal:
-        pytest.fail("Test assertion failed")
+        return False
 
     calendar = get_caldav_calendar(principal)
     if not calendar:
-        pytest.fail("Test assertion failed")
+        return False
 
     todos = get_caldav_todos(calendar)
     if len(todos) == 0:
         print_success("CalDAV calendar is empty")
     else:
         print_error(f"CalDAV has {len(todos)} todos, expected 0")
-        pytest.fail("CalDAV has {len(todos)} todos, expected 0")
+        return False
+
+    return True
 
 
-@pytest.mark.integration
-def test_03_tw_to_caldav_create():
+def test_tw_to_caldav_create():
     """Test creating tasks in TaskWarrior and syncing to CalDAV."""
     print_section("PHASE 2: TaskWarrior → CalDAV (Create)")
 
@@ -542,7 +516,7 @@ def test_03_tw_to_caldav_create():
     print_info("\nRunning sync...")
     if not run_sync(delete_tasks=False):
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     # Verify in CalDAV
     # Note: calendar.todos() may not return COMPLETED todos
@@ -550,15 +524,17 @@ def test_03_tw_to_caldav_create():
     calendar = get_caldav_calendar(principal)
     todos = get_caldav_todos(calendar)
 
-    assert len(todos) == 2, (
+    if len(todos) == 2:
+        print_success(f"✓ CalDAV now has {len(todos)} todos (expected 2 pending)")
+        return True
+    print_error(
         f"CalDAV has {len(todos)} todos, expected 2 (completed task may not be returned"
         " by calendar.todos())"
     )
-    print_success(f"✓ CalDAV now has {len(todos)} todos (expected 2 pending)")
+    return False
 
 
-@pytest.mark.integration
-def test_04_caldav_to_tw_create():
+def test_caldav_to_tw_create():
     """Test creating todos in CalDAV and syncing to TaskWarrior."""
     print_section("PHASE 3: CalDAV → TaskWarrior (Create)")
 
@@ -575,20 +551,19 @@ def test_04_caldav_to_tw_create():
     print_info("\nRunning sync...")
     if not run_sync(delete_tasks=False):
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     # Verify in TaskWarrior (only pending tasks)
     tasks = get_tw_tasks()
     # Should have 2 original pending + 2 new from CalDAV = 4 pending
     if len(tasks) == 4:
         print_success(f"TaskWarrior now has {len(tasks)} pending tasks (expected 4)")
-    else:
-        print_error(f"TaskWarrior has {len(tasks)} pending tasks, expected 4")
-        pytest.fail("TaskWarrior has {len(tasks)} pending tasks, expected 4")
+        return True
+    print_error(f"TaskWarrior has {len(tasks)} pending tasks, expected 4")
+    return False
 
 
-@pytest.mark.integration
-def test_05_tw_to_caldav_modify():
+def test_tw_to_caldav_modify():
     """Test modifying task in TaskWarrior and syncing to CalDAV."""
     print_section("PHASE 4: TaskWarrior → CalDAV (Modify)")
 
@@ -596,7 +571,7 @@ def test_05_tw_to_caldav_modify():
     tasks = get_tw_tasks()
     if not tasks:
         print_error("No tasks to modify")
-        pytest.fail("No tasks to modify")
+        return False
 
     task = tasks[0]
     original_desc = task["description"]
@@ -608,13 +583,13 @@ def test_05_tw_to_caldav_modify():
     print_info("\nRunning sync...")
     if not run_sync(delete_tasks=False):
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     print_success("Sync completed - verify CalDAV todo was updated")
+    return True
 
 
-@pytest.mark.integration
-def test_06_caldav_to_tw_modify():
+def test_caldav_to_tw_modify():
     """Test modifying todo in CalDAV and syncing to TaskWarrior."""
     print_section("PHASE 5: CalDAV → TaskWarrior (Modify)")
 
@@ -626,7 +601,7 @@ def test_06_caldav_to_tw_modify():
     todos = get_caldav_todos(calendar)
     if not todos:
         print_error("No todos to modify")
-        pytest.fail("No todos to modify")
+        return False
 
     # Find a specific todo to modify
     todo_to_modify = None
@@ -647,7 +622,7 @@ def test_06_caldav_to_tw_modify():
 
     if not todo_to_modify:
         print_error("Could not find 'CalDAV test todo 1' to modify")
-        pytest.fail("Could not find ")
+        return False
 
     # Wait before modification to ensure clear timestamp separation from previous sync
     print_info("Waiting 2 seconds to ensure timestamp separation...")
@@ -681,7 +656,7 @@ def test_06_caldav_to_tw_modify():
 
         if not original_summary:
             print_error("Could not find VTODO component")
-            pytest.fail("Could not find VTODO component")
+            return False
 
         # Update the todo with modified data using the caldav library's method
         todo_to_modify.data = ical.to_ical()
@@ -693,13 +668,13 @@ def test_06_caldav_to_tw_modify():
         import traceback
 
         traceback.print_exc()
-        pytest.fail("Test assertion failed")
+        return False
 
     # Run sync (without deletion for this test)
     print_info("\nRunning sync...")
     if not run_sync(delete_tasks=False):
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     # Verify in TaskWarrior - check if the modification was synced
     tasks = get_tw_tasks()
@@ -711,104 +686,13 @@ def test_06_caldav_to_tw_modify():
             break
 
     if found_modified:
-        pass  # Test passes
-    else:
-        print_error("Modified CalDAV todo was not synced to TaskWarrior")
-        pytest.fail("Modified CalDAV todo was not synced to TaskWarrior")
+        return True
+
+    print_error("Modified CalDAV todo was not synced to TaskWarrior")
+    return False
 
 
-@pytest.mark.integration
-def test_07_tw_to_caldav_delete():
-    """Test deleting task in TaskWarrior and syncing to CalDAV."""
-    print_section("PHASE 7: TaskWarrior → CalDAV (Delete)")
-
-    # Get current state
-    tasks = get_tw_tasks()
-    if not tasks:
-        print_error("No tasks available to delete")
-        pytest.fail("No tasks available to delete")
-
-    # Get CalDAV state before deletion
-    _client, principal = get_caldav_client()
-    calendar = get_caldav_calendar(principal)
-    todos_before = len(get_caldav_todos(calendar))
-
-    # Delete a task
-    task = tasks[0]
-    task_desc = task["description"]
-    print_info(f"Deleting task: {task_desc}")
-
-    if not delete_tw_task(task["uuid"]):
-        print_error("Failed to delete task")
-        pytest.fail("Failed to delete task")
-
-    # Run sync
-    print_info("\nRunning sync...")
-    if not run_sync():
-        print_error("Sync failed")
-        pytest.fail("Sync failed")
-
-    # Verify in CalDAV - should have one less todo
-    todos_after = len(get_caldav_todos(calendar))
-
-    assert todos_after == todos_before - 1, (
-        f"CalDAV todos unchanged: {todos_before} → {todos_after}"
-    )
-    print_success(...)
-
-
-@pytest.mark.integration
-def test_08_caldav_to_tw_delete():
-    """Test deleting todo in CalDAV and syncing to TaskWarrior."""
-    print_section("PHASE 8: CalDAV → TaskWarrior (Delete)")
-
-    # Get CalDAV client
-    _client, principal = get_caldav_client()
-    calendar = get_caldav_calendar(principal)
-
-    # Get current states
-    tasks_before = len(get_tw_tasks())
-    todos = get_caldav_todos(calendar)
-
-    if not todos:
-        print_error("No todos available to delete")
-        pytest.fail("No todos available to delete")
-
-    # Delete a CalDAV todo
-    todo_to_delete = todos[0]
-    try:
-        # Get summary for logging
-        ical = Calendar.from_ical(todo_to_delete.data)
-        summary = "unknown"
-        for component in ical.walk():
-            if component.name == "VTODO":
-                summary = str(component.get("summary", "unknown"))
-                break
-
-        print_info(f"Deleting CalDAV todo: {summary}")
-        todo_to_delete.delete()
-        print_success(f"Deleted CalDAV todo: {summary}")
-    except Exception as e:
-        print_error(f"Failed to delete CalDAV todo: {e}")
-        pytest.fail("Failed to delete CalDAV todo: {e}")
-
-    # Run sync
-    print_info("\nRunning sync...")
-    if not run_sync():
-        print_error("Sync failed")
-        pytest.fail("Sync failed")
-
-    # Verify in TaskWarrior - should have one less task
-    tasks_after = len(get_tw_tasks())
-
-    assert tasks_after == tasks_before - 1, (
-        f"TaskWarrior tasks unchanged: {tasks_before} → {tasks_after}"
-    )
-    print_success(...)
-
-
-@pytest.mark.integration
-def test_09_dry_run():
+def test_dry_run():
     """Test dry-run mode."""
     print_section("PHASE 6: Dry-Run Mode")
 
@@ -832,13 +716,125 @@ def test_09_dry_run():
 
     if todos_after == todos_before:
         print_success("✓ CalDAV unchanged (dry-run worked)")
-    else:
-        print_error(f"CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
-        pytest.fail("CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
+        return True
+    print_error(f"CalDAV changed: {todos_before} → {todos_after} (dry-run failed)")
+    return False
 
 
-@pytest.mark.integration
-def test_10_multi_client_create():
+def test_uda_configuration():
+    """Test that the required UDA (caldav_uid) is properly configured."""
+    print_section("PHASE 0: UDA Configuration")
+
+    stdout, stderr, code = run_task_command(["udas"])
+
+    if code != 0:
+        print_error(f"Failed to get UDAs: {stderr}")
+        return False
+
+    # Check if caldav_uid UDA is defined
+    if "caldav_uid" in stdout:
+        print_success("✓ caldav_uid UDA is configured")
+        print_info(f"UDA output:\n{stdout[:200]}")
+        return True
+
+    print_error("caldav_uid UDA is not configured")
+    print_info(f"Available UDAs:\n{stdout}")
+    return False
+
+
+def test_tw_to_caldav_delete():
+    """Test deleting task in TaskWarrior and syncing to CalDAV."""
+    print_section("PHASE 7: TaskWarrior → CalDAV (Delete)")
+
+    # Get current state
+    tasks = get_tw_tasks()
+    if not tasks:
+        print_error("No tasks available to delete")
+        return False
+
+    # Get CalDAV state before deletion
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+    todos_before = len(get_caldav_todos(calendar))
+
+    # Delete a task
+    task = tasks[0]
+    task_desc = task["description"]
+    print_info(f"Deleting task: {task_desc}")
+
+    if not delete_tw_task(task["uuid"]):
+        print_error("Failed to delete task")
+        return False
+
+    # Run sync
+    print_info("\nRunning sync...")
+    if not run_sync():
+        print_error("Sync failed")
+        return False
+
+    # Verify in CalDAV - should have one less todo
+    todos_after = len(get_caldav_todos(calendar))
+
+    if todos_after == todos_before - 1:
+        print_success(f"✓ CalDAV todo deleted: {todos_before} → {todos_after}")
+        return True
+
+    print_error(f"CalDAV todos unchanged: {todos_before} → {todos_after}")
+    return False
+
+
+def test_caldav_to_tw_delete():
+    """Test deleting todo in CalDAV and syncing to TaskWarrior."""
+    print_section("PHASE 8: CalDAV → TaskWarrior (Delete)")
+
+    # Get CalDAV client
+    _client, principal = get_caldav_client()
+    calendar = get_caldav_calendar(principal)
+
+    # Get current states
+    tasks_before = len(get_tw_tasks())
+    todos = get_caldav_todos(calendar)
+
+    if not todos:
+        print_error("No todos available to delete")
+        return False
+
+    # Delete a CalDAV todo
+    todo_to_delete = todos[0]
+    try:
+        # Get summary for logging
+        ical = Calendar.from_ical(todo_to_delete.data)
+        summary = "unknown"
+        for component in ical.walk():
+            if component.name == "VTODO":
+                summary = str(component.get("summary", "unknown"))
+                break
+
+        print_info(f"Deleting CalDAV todo: {summary}")
+        todo_to_delete.delete()
+        print_success(f"Deleted CalDAV todo: {summary}")
+    except Exception as e:
+        print_error(f"Failed to delete CalDAV todo: {e}")
+        return False
+
+    # Run sync
+    print_info("\nRunning sync...")
+    if not run_sync():
+        print_error("Sync failed")
+        return False
+
+    # Verify in TaskWarrior - should have one less task
+    tasks_after = len(get_tw_tasks())
+
+    if tasks_after == tasks_before - 1:
+        print_success(f"✓ TaskWarrior task deleted: {tasks_before} → {tasks_after}")
+        return True
+
+    print_error(f"TaskWarrior tasks unchanged: {tasks_before} → {tasks_after}")
+    return False
+
+
+def test_multi_client_create():
     """Test task creation synchronization between two TaskWarrior clients."""
     print_section("PHASE 10: Multi-Client (Create)")
 
@@ -860,42 +856,43 @@ def test_10_multi_client_create():
     )
     if not task1:
         print_error("Failed to create task in client 1")
-        pytest.fail("Failed to create task in client 1")
+        return False
     print_success(f"[CLIENT 1] Created: {task1['description']}")
 
     # Client 1: Sync to CalDAV
     print_info("\n[CLIENT 1] Syncing to CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT1):
         print_error("Client 1 sync failed")
-        pytest.fail("Client 1 sync failed")
+        return False
 
     # Verify task is in CalDAV
     todos_after_sync = get_caldav_todos(calendar)
     if len(todos_after_sync) != 1:
         print_error(f"Expected 1 todo in CalDAV, found {len(todos_after_sync)}")
-        pytest.fail("Expected 1 todo in CalDAV, found {len(todos_after_sync)}")
+        return False
     print_success("✓ Task synced to CalDAV")
 
     # Client 2: Sync from CalDAV
     print_info("\n[CLIENT 2] Syncing from CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT2):
         print_error("Client 2 sync failed")
-        pytest.fail("Client 2 sync failed")
+        return False
 
     # Verify task appears in Client 2
     client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
     if len(client2_tasks) != 1:
         print_error(f"Expected 1 task in client 2, found {len(client2_tasks)}")
-        pytest.fail("Expected 1 task in client 2, found {len(client2_tasks)}")
+        return False
 
-    assert "Multi-client test task from client 1" in client2_tasks[0]["description"], (
-        "Task not properly synced to client 2"
-    )
-    print_success(...)
+    if "Multi-client test task from client 1" in client2_tasks[0]["description"]:
+        print_success(f"✓ [CLIENT 2] Task synced: {client2_tasks[0]['description']}")
+        return True
+
+    print_error("Task not properly synced to client 2")
+    return False
 
 
-@pytest.mark.integration
-def test_11_multi_client_modify():
+def test_multi_client_modify():
     """Test task modification synchronization between two TaskWarrior clients."""
     print_section("PHASE 11: Multi-Client (Modify)")
 
@@ -903,7 +900,7 @@ def test_11_multi_client_modify():
     client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
     if not client2_tasks:
         print_error("No tasks in client 2 to modify")
-        pytest.fail("No tasks in client 2 to modify")
+        return False
 
     task = client2_tasks[0]
     original_desc = task["description"]
@@ -917,35 +914,38 @@ def test_11_multi_client_modify():
         description=f"{original_desc} [MODIFIED BY CLIENT 2]",
     ):
         print_error("Failed to modify task in client 2")
-        pytest.fail("Failed to modify task in client 2")
+        return False
     print_success("[CLIENT 2] Modified task")
 
     # Client 2: Sync to CalDAV
     print_info("\n[CLIENT 2] Syncing to CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT2):
         print_error("Client 2 sync failed")
-        pytest.fail("Client 2 sync failed")
+        return False
 
     # Client 1: Sync from CalDAV
     print_info("\n[CLIENT 1] Syncing from CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT1):
         print_error("Client 1 sync failed")
-        pytest.fail("Client 1 sync failed")
+        return False
 
     # Verify modification appears in Client 1
     client1_tasks = get_client_tasks(TASKDATA_CLIENT1)
     if not client1_tasks:
         print_error("No tasks found in client 1")
-        pytest.fail("No tasks found in client 1")
+        return False
 
-    assert "[MODIFIED BY CLIENT 2]" in client1_tasks[0]["description"], (
+    if "[MODIFIED BY CLIENT 2]" in client1_tasks[0]["description"]:
+        print_success(f"✓ [CLIENT 1] Task updated: {client1_tasks[0]['description']}")
+        return True
+
+    print_error(
         f"Modification not synced to client 1. Got: {client1_tasks[0]['description']}"
     )
-    print_success("✓ Modification synced to client 1")
+    return False
 
 
-@pytest.mark.integration
-def test_12_multi_client_delete():
+def test_multi_client_delete():
     """Test task deletion synchronization between two TaskWarrior clients."""
     print_section("PHASE 12: Multi-Client (Delete)")
 
@@ -953,7 +953,7 @@ def test_12_multi_client_delete():
     client1_tasks = get_client_tasks(TASKDATA_CLIENT1)
     if not client1_tasks:
         print_error("No tasks in client 1 to delete")
-        pytest.fail("No tasks in client 1 to delete")
+        return False
 
     task = client1_tasks[0]
     task_desc = task["description"]
@@ -961,32 +961,32 @@ def test_12_multi_client_delete():
     print_info(f"\n[CLIENT 1] Deleting task: {task_desc}")
     if not delete_client_task(TASKDATA_CLIENT1, task["uuid"]):
         print_error("Failed to delete task in client 1")
-        pytest.fail("Failed to delete task in client 1")
+        return False
     print_success("[CLIENT 1] Deleted task")
 
     # Client 1: Sync to CalDAV
     print_info("\n[CLIENT 1] Syncing to CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT1):
         print_error("Client 1 sync failed")
-        pytest.fail("Client 1 sync failed")
+        return False
 
     # Client 2: Sync from CalDAV
     print_info("\n[CLIENT 2] Syncing from CalDAV...")
     if not run_sync(taskdata_override=TASKDATA_CLIENT2):
         print_error("Client 2 sync failed")
-        pytest.fail("Client 2 sync failed")
+        return False
 
     # Verify task is deleted in Client 2
     client2_tasks = get_client_tasks(TASKDATA_CLIENT2)
     if len(client2_tasks) == 0:
         print_success("✓ [CLIENT 2] Task deleted")
-    else:
-        print_error(f"Task not deleted in client 2. Found {len(client2_tasks)} tasks")
-        pytest.fail(f"Task not deleted in client 2. Found {len(client2_tasks)} tasks")
+        return True
+
+    print_error(f"Task not deleted in client 2. Found {len(client2_tasks)} tasks")
+    return False
 
 
-@pytest.mark.integration
-def test_13_tw_annotation_create():
+def test_tw_annotation_create():
     """Test creating TW task with annotation syncs to CalDAV."""
     print_section("PHASE 13: TW → CalDAV (Annotation Create)")
 
@@ -997,7 +997,7 @@ def test_13_tw_annotation_create():
     task = create_tw_task(task_desc)
     if not task:
         print_error("Failed to create task")
-        pytest.fail("Failed to create task")
+        return False
 
     task_uuid = task["uuid"]
 
@@ -1010,7 +1010,7 @@ def test_13_tw_annotation_create():
 
     if not result:
         print_error("Failed to add annotation")
-        pytest.fail("Failed to add annotation")
+        return False
 
     print_success(f"✓ Added annotation to task {task_uuid}")
 
@@ -1018,19 +1018,19 @@ def test_13_tw_annotation_create():
     print_info("\nSyncing to CalDAV...")
     if not run_sync():
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     # Verify CalDAV todo has annotation in description
     print_info("\nVerifying CalDAV todo...")
     client, principal = get_caldav_client()
     if not client or not principal:
         print_error("Failed to connect to CalDAV")
-        pytest.fail("Failed to connect to CalDAV")
+        return False
 
     calendar = get_caldav_calendar(principal)
     if not calendar:
         print_error("Failed to get calendar")
-        pytest.fail("Failed to get calendar")
+        return False
 
     todos = get_caldav_todos(calendar)
 
@@ -1052,29 +1052,29 @@ def test_13_tw_annotation_create():
 
     if description is None:
         print_error("Task not found in CalDAV")
-        pytest.fail("Task not found in CalDAV")
+        return False
 
     if "--- TaskWarrior Annotations ---" not in description:
         print_error("Annotation marker not found in CalDAV description")
         print_error(f"Description: {description}")
-        pytest.fail("Annotation marker not found in CalDAV description")
+        return False
 
     if annotation_text not in description:
         print_error(f"Annotation text '{annotation_text}' not found in description")
         print_error(f"Description: {description}")
-        pytest.fail("Annotation text ")
+        return False
 
     # Check for pipe-delimited format (timestamp|description)
     if "|" not in description:
         print_error("Annotation not in pipe-delimited format")
         print_error(f"Description: {description}")
-        pytest.fail("Annotation not in pipe-delimited format")
+        return False
 
     print_success("✓ Annotation synced to CalDAV with correct format")
+    return True
 
 
-@pytest.mark.integration
-def test_14_caldav_annotation_sync():
+def test_caldav_annotation_sync():
     """Test CalDAV todo with annotation syncs to TW."""
     print_section("PHASE 14: CalDAV → TW (Annotation)")
 
@@ -1092,25 +1092,25 @@ def test_14_caldav_annotation_sync():
     client, principal = get_caldav_client()
     if not client or not principal:
         print_error("Failed to connect to CalDAV")
-        pytest.fail("Failed to connect to CalDAV")
+        return False
 
     calendar = get_caldav_calendar(principal)
     if not calendar:
         print_error("Failed to get calendar")
-        pytest.fail("Failed to get calendar")
+        return False
 
     todo_uid = create_caldav_todo(
         calendar, task_desc, description=description_with_annotation
     )
     if not todo_uid:
         print_error("Failed to create CalDAV todo")
-        pytest.fail("Failed to create CalDAV todo")
+        return False
 
     # Sync from CalDAV
     print_info("\nSyncing from CalDAV...")
     if not run_sync():
         print_error("Sync failed")
-        pytest.fail("Sync failed")
+        return False
 
     # Verify TW task has annotation
     print_info("\nVerifying TW task...")
@@ -1119,18 +1119,18 @@ def test_14_caldav_annotation_sync():
     matching_tasks = [t for t in tasks if t.get("description") == task_desc]
     if not matching_tasks:
         print_error("Task not found in TW")
-        pytest.fail("Task not found in TW")
+        return False
 
     task = matching_tasks[0]
 
     if "annotations" not in task:
         print_error("Task does not have annotations")
-        pytest.fail("Task does not have annotations")
+        return False
 
     annotations = task["annotations"]
     if not isinstance(annotations, list) or len(annotations) == 0:
         print_error(f"Task has no annotations: {annotations}")
-        pytest.fail("Task has no annotations: {annotations}")
+        return False
 
     # Check annotation content
     annotation = annotations[0]
@@ -1139,20 +1139,20 @@ def test_14_caldav_annotation_sync():
             f"Annotation text mismatch. Expected: '{annotation_text}', "
             f"Got: '{annotation.get('description')}'"
         )
-        pytest.fail("Test assertion failed")
+        return False
 
     if annotation.get("entry") != timestamp:
         print_error(
             f"Annotation timestamp mismatch. Expected: '{timestamp}', "
             f"Got: '{annotation.get('entry')}'"
         )
-        pytest.fail("Test assertion failed")
+        return False
 
     print_success("✓ Annotation synced from CalDAV to TW")
+    return True
 
 
-@pytest.mark.integration
-def test_15_annotation_deduplication():
+def test_annotation_deduplication():
     """Test bidirectional annotation sync with deduplication."""
     print_section("PHASE 15: Annotation Deduplication")
 
@@ -1164,7 +1164,7 @@ def test_15_annotation_deduplication():
     task = create_tw_task(task_desc)
     if not task:
         print_error("Failed to create task")
-        pytest.fail("Failed to create task")
+        return False
 
     task_uuid = task["uuid"]
 
@@ -1172,38 +1172,33 @@ def test_15_annotation_deduplication():
     print_info(f"Adding annotation 1: {annotation1}")
     if not run_task_command([task_uuid, "annotate", annotation1]):
         print_error("Failed to add annotation 1")
-        pytest.fail("Failed to add annotation 1")
+        return False
 
     # Sync to CalDAV
     print_info("\n[SYNC 1] TW → CalDAV")
     if not run_sync():
         print_error("Sync 1 failed")
-        pytest.fail("Sync 1 failed")
+        return False
 
     # Sync again (CalDAV → TW) - should not duplicate
     print_info("\n[SYNC 2] CalDAV → TW (should not duplicate)")
     if not run_sync():
         print_error("Sync 2 failed")
-        pytest.fail("Sync 2 failed")
+        return False
 
     # Verify still only 1 annotation
     tasks = get_tw_tasks()
     task = [t for t in tasks if t["uuid"] == task_uuid][0]
 
-    print_info(f"Task description: {task.get('description')}")
-    print_info(f"Task UUID: {task.get('uuid')}")
-    print_info(f"Task caldav_uid: {task.get('caldav_uid')}")
-
     if "annotations" not in task:
         print_error("Task lost annotations after sync")
-        pytest.fail("Task lost annotations after sync")
+        return False
 
     if len(task["annotations"]) != 1:
         print_error(
             f"Annotation duplicated! Expected 1, got {len(task['annotations'])}"
         )
-        print_error(f"Annotations: {json.dumps(task['annotations'], indent=2)}")
-        pytest.fail("Test assertion failed")
+        return False
 
     print_success("✓ No duplication after bidirectional sync")
 
@@ -1213,19 +1208,19 @@ def test_15_annotation_deduplication():
 
     if not run_task_command([task_uuid, "annotate", annotation2]):
         print_error("Failed to add annotation 2")
-        pytest.fail("Failed to add annotation 2")
+        return False
 
     # Sync to CalDAV
     print_info("\n[SYNC 3] TW → CalDAV (with new annotation)")
     if not run_sync():
         print_error("Sync 3 failed")
-        pytest.fail("Sync 3 failed")
+        return False
 
     # Sync back from CalDAV
     print_info("\n[SYNC 4] CalDAV → TW (should have 2 annotations)")
     if not run_sync():
         print_error("Sync 4 failed")
-        pytest.fail("Sync 4 failed")
+        return False
 
     # Verify we have exactly 2 annotations
     tasks = get_tw_tasks()
@@ -1236,16 +1231,78 @@ def test_15_annotation_deduplication():
             f"Expected 2 annotations, got {len(task['annotations'])}: "
             f"{task['annotations']}"
         )
-        pytest.fail("Test assertion failed")
+        return False
 
     # Verify content
     descriptions = [a["description"] for a in task["annotations"]]
     if annotation1 not in descriptions:
         print_error(f"Annotation 1 '{annotation1}' not found")
-        pytest.fail("Annotation 1 ")
+        return False
 
     if annotation2 not in descriptions:
         print_error(f"Annotation 2 '{annotation2}' not found")
-        pytest.fail("Annotation 2 ")
+        return False
 
     print_success("✓ Both annotations preserved, no duplicates")
+    return True
+
+
+def main():
+    """Run all integration tests."""
+    print(f"\n{Colors.BOLD}TaskWarrior ↔ CalDAV Integration Test (CI/CD){Colors.RESET}")
+    print(f"CalDAV URL: {CALDAV_URL}")
+    print(f"Calendar: {CALDAV_CALENDAR_ID}")
+    print(f"Project: {TW_PROJECT}")
+    print(f"TaskData: {TASKDATA or 'default'}")
+
+    # Always clean before running tests in CI
+    clear_test_data()
+
+    # Run tests
+    tests = [
+        ("UDA Configuration", test_uda_configuration),
+        ("Initial State", verify_initial_state),
+        ("TW → CalDAV (Create)", test_tw_to_caldav_create),
+        ("CalDAV → TW (Create)", test_caldav_to_tw_create),
+        ("TW → CalDAV (Modify)", test_tw_to_caldav_modify),
+        ("CalDAV → TW (Modify)", test_caldav_to_tw_modify),
+        ("TW → CalDAV (Delete)", test_tw_to_caldav_delete),
+        ("CalDAV → TW (Delete)", test_caldav_to_tw_delete),
+        ("Dry-Run Mode", test_dry_run),
+        ("Multi-Client (Create)", test_multi_client_create),
+        ("Multi-Client (Modify)", test_multi_client_modify),
+        ("Multi-Client (Delete)", test_multi_client_delete),
+        ("TW → CalDAV (Annotation)", test_tw_annotation_create),
+        ("CalDAV → TW (Annotation)", test_caldav_annotation_sync),
+        ("Annotation Deduplication", test_annotation_deduplication),
+    ]
+
+    results = []
+    for name, test_func in tests:
+        try:
+            result = test_func()
+            results.append((name, result))
+        except Exception as e:
+            print_error(f"Test '{name}' raised exception: {e}")
+            import traceback
+
+            traceback.print_exc()
+            results.append((name, False))
+
+    # Summary
+    print_section("TEST SUMMARY")
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+
+    for name, result in results:
+        status = "PASS" if result else "FAIL"
+        color = Colors.GREEN if result else Colors.RED
+        print(f"{color}{status:6}{Colors.RESET} {name}")
+
+    print(f"\n{Colors.BOLD}Total: {passed}/{total} passed{Colors.RESET}\n")
+
+    return 0 if passed == total else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

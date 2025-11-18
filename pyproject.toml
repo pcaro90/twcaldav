@@ -21,3 +21,14 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.14.5",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+# Add verbose output by default
+addopts = "-v"
