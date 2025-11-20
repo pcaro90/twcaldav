@@ -4,9 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "caldav>=2.1.2",
-]
+dependencies = ["caldav>=2.1.2"]
 
 [project.scripts]
 twcaldav = "twcaldav.cli:main"
@@ -16,11 +14,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "pytest>=9.0.1",
-    "pytest-cov>=7.0.0",
-    "ruff>=0.14.5",
-]
+dev = ["pytest>=9.0.1", "pytest-cov>=7.0.0", "ruff>=0.14.5"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -28,7 +22,15 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+  "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
 # Add verbose output by default
 addopts = "-v"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
