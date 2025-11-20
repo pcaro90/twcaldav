@@ -6,25 +6,34 @@
 
 Bidirectional synchronization between TaskWarrior and CalDAV servers.
 
-> [!WARNING] This project was completely coded by an AI agent. A human was
-> involved to describe the project, to make implementation and behaviour
-> decisions, to define what tests should be performed, and a few other things.
-> However, as of v1.0.0, said human did **NOT** write a single line of code.
-> What a time to be alive.
+> [!WARNING]
+>
+> This project was completely coded by an AI agent. A human was involved to
+> describe the project, to make implementation and behaviour decisions, to
+> define what tests should be performed, detected and pointed mistakes, and a
+> few other things. However, as of now, human did **NOT** write or correct a
+> single line of code directly. What a time to be alive.
+>
+> Also, this program may destroy your data (not because it was made by robots).
+> Always use `--dry-run` before sync'ing anything important.
 
 ## Features
 
 - 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔
-  CalDAV)
+  CalDAV).
+- **No sync database** - CalDAV UID is stored as a TaskWarrior
+  [UDA](https://taskwarrior.org/docs/udas/), so there is no need for an
+  intermediate sync database.
 - 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple
-  computers
-- 📅 **Full CalDAV Support** - Works with Radicale, Baikal, Nextcloud, and other
-  CalDAV servers
-- 🎯 **Project Mapping** - Map TaskWarrior projects to CalDAV calendars
-- 🔍 **Smart Sync** - Timestamp-based conflict resolution
-- 🧪 **Dry Run Mode** - Preview changes before syncing
-- ✅ **Comprehensive Tests** - 118 unit tests + 5 integration tests
-- 🐳 **CI/CD Ready** - Automated testing with Docker
+  computers. The CalDAV server is agnostic to the sync, so it works well with
+  other clients. Also, multiple TaskWarrior instances can sync against the same
+  CalDAV server.
+- 🎯 **Project Mapping** - One TaskWarrior project is mapped to one CalDAV
+  calendar.
+- 🔍 **LWW Sync** - Timestamp-based conflict resolution. Last Write Wins.
+- 🧪 **Dry Run Mode** - Preview changes before syncing.
+- ✅ **Comprehensive Tests** - Several unit tests, plus integration tests
+  performed in Docker, to replicate actual usage.
 
 ## Installation
 
@@ -431,26 +440,6 @@ If you see errors about missing `caldav_uid` UDA, configure it:
 task config uda.caldav_uid.type string
 task config uda.caldav_uid.label "CalDAV UID"
 ```
-
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make changes and add tests
-4. Run tests: `uv run pytest tests/ -v`
-5. Run integration tests: `./scripts/run-integration-tests.sh`
-6. Lint code: `uv run ruff check src/ tests/`
-7. Format code: `uv run ruff format src/ tests/`
-8. Submit a pull request
-
-## Documentation
-
-- [Testing Quick Start](TESTING_QUICKSTART.md) - Run tests locally
-- [CI/CD Documentation](.github/workflows/README.md) - GitHub Actions setup
-- [Integration Testing](INTEGRATION_TEST.md) - Manual testing guide
-- [Development Guide](AGENTS.md) - Build/test commands
 
 ## License
 
