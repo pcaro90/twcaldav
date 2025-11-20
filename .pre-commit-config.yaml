@@ -1,8 +1,12 @@
 repos:
-- hooks:
-  - id: commitizen
-  - id: commitizen-branch
-    stages:
-    - pre-push
-  repo: https://github.com/commitizen-tools/commitizen
-  rev: v4.8.3
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.8.3
+    hooks:
+      - id: commitizen
+      - id: commitizen-branch
+        stages:
+          - pre-push
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.5
+    hooks:
+      - id: ruff-check
