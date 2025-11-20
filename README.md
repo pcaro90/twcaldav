@@ -6,11 +6,20 @@
 
 Bidirectional synchronization between TaskWarrior and CalDAV servers.
 
+> [!WARNING] This project was completely coded by an AI agent. A human was
+> involved to describe the project, to make implementation and behaviour
+> decisions, to define what tests should be performed, and a few other things.
+> However, as of v1.0.0, said human did **NOT** write a single line of code.
+> What a time to be alive.
+
 ## Features
 
-- 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔ CalDAV)
-- 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple computers
-- 📅 **Full CalDAV Support** - Works with Radicale, Baikal, Nextcloud, and other CalDAV servers
+- 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔
+  CalDAV)
+- 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple
+  computers
+- 📅 **Full CalDAV Support** - Works with Radicale, Baikal, Nextcloud, and other
+  CalDAV servers
 - 🎯 **Project Mapping** - Map TaskWarrior projects to CalDAV calendars
 - 🔍 **Smart Sync** - Timestamp-based conflict resolution
 - 🧪 **Dry Run Mode** - Preview changes before syncing
@@ -43,14 +52,16 @@ pip install -e .
 
 ### 1. Configure TaskWarrior UDA
 
-**IMPORTANT**: Before first sync, configure TaskWarrior to recognize the CalDAV UID as a User Defined Attribute:
+**IMPORTANT**: Before first sync, configure TaskWarrior to recognize the CalDAV
+UID as a User Defined Attribute:
 
 ```bash
 task config uda.caldav_uid.type string
 task config uda.caldav_uid.label "CalDAV UID"
 ```
 
-This allows twcaldav to store the CalDAV task identifier in your TaskWarrior database, enabling proper synchronization across multiple devices.
+This allows twcaldav to store the CalDAV task identifier in your TaskWarrior
+database, enabling proper synchronization across multiple devices.
 
 ### 2. Create Configuration File
 
@@ -78,13 +89,104 @@ delete_tasks = false  # Set to true to sync deletions
 
 ```bash
 # Sync everything
-uv run twcaldav
+uv run twcaldav sync
 
 # Dry run (preview changes)
-uv run twcaldav --dry-run
+uv run twcaldav sync --dry-run
 
 # Verbose output
-uv run twcaldav -v
+uv run twcaldav -v sync
+
+# Test CalDAV connection
+uv run twcaldav test-caldav
+
+# Remove CalDAV UID from tasks (unlink)
+uv run twcaldav unlink --yes
+
+# Unlink specific project only
+uv run twcaldav unlink --project work --yes
+```
+
+## CLI Commands
+
+### `sync` - Bidirectional Synchronization
+
+Perform bidirectional sync between TaskWarrior and CalDAV.
+
+```bash
+uv run twcaldav sync [OPTIONS]
+
+Options:
+  -n, --dry-run    Perform a trial run with no changes made
+  --delete         Enable deletion of tasks (overrides config)
+  --no-delete      Disable deletion of tasks (overrides config)
+```
+
+Examples:
+
+```bash
+# Normal sync
+uv run twcaldav sync
+
+# Preview changes without making them
+uv run twcaldav sync --dry-run
+
+# Enable deletion for this sync
+uv run twcaldav sync --delete
+```
+
+### `test-caldav` - Test CalDAV Connection
+
+Test connection to CalDAV server and list available calendars.
+
+```bash
+uv run twcaldav test-caldav
+
+Options:
+  None (uses config file for connection details)
+```
+
+This command will:
+
+- Test connection to your CalDAV server
+- List all available calendars
+- Show which calendars are mapped to TaskWarrior projects
+
+### `unlink` - Remove CalDAV UIDs
+
+Remove the `caldav_uid` field from TaskWarrior tasks, effectively unlinking them
+from CalDAV.
+
+```bash
+uv run twcaldav unlink [OPTIONS]
+
+Options:
+  --project PROJECT  Filter by project name (default: all projects)
+  --yes             Skip confirmation prompt
+  -n, --dry-run     Show what would be unlinked without making changes
+```
+
+Examples:
+
+```bash
+# Unlink all tasks (with confirmation)
+uv run twcaldav unlink
+
+# Unlink specific project
+uv run twcaldav unlink --project work --yes
+
+# Preview what would be unlinked
+uv run twcaldav unlink --dry-run
+```
+
+### Global Options
+
+These options work with all commands:
+
+```bash
+-v, --verbose       Enable verbose output (DEBUG level)
+-c, --config PATH   Path to configuration file
+--version          Show version number
 ```
 
 ## Configuration
@@ -108,7 +210,8 @@ taskwarrior_project = "work"
 caldav_calendar = "calendar-uuid-or-name"
 ```
 
-Multiple mappings are supported. Each TaskWarrior project syncs to its mapped calendar.
+Multiple mappings are supported. Each TaskWarrior project syncs to its mapped
+calendar.
 
 ### Sync Options
 
@@ -119,23 +222,28 @@ delete_tasks = false  # Enable deletion sync (careful!)
 
 ### Security Best Practices
 
-1. **Protect Configuration File**: Ensure config file has restricted permissions:
+1. **Protect Configuration File**: Ensure config file has restricted
+   permissions:
+
    ```bash
    chmod 600 ~/.config/twcaldav/config.toml
    ```
 
-2. **Use App Passwords**: Many CalDAV servers (Nextcloud, etc.) support app-specific passwords. Use them instead of your main account password.
+2. **Use App Passwords**: Many CalDAV servers (Nextcloud, etc.) support
+   app-specific passwords. Use them instead of your main account password.
 
-3. **HTTPS Only**: Always use HTTPS URLs for CalDAV servers to encrypt credentials in transit.
+3. **HTTPS Only**: Always use HTTPS URLs for CalDAV servers to encrypt
+   credentials in transit.
 
 4. **Backup First**: Before first sync, backup your TaskWarrior data:
+
    ```bash
    cp -r ~/.task ~/.task.backup
    ```
 
 5. **Test with Dry Run**: Always test with `--dry-run` first:
    ```bash
-   uv run twcaldav --dry-run -v
+   uv run twcaldav sync --dry-run -v
    ```
 
 ### Automated Sync (Cron Job)
@@ -147,7 +255,7 @@ To sync automatically every hour:
 crontab -e
 
 # Add this line (adjust path to uv and project):
-0 * * * * cd /path/to/twcaldav && /path/to/uv run twcaldav >> /var/log/twcaldav.log 2>&1
+0 * * * * cd /path/to/twcaldav && /path/to/uv run twcaldav sync >> /var/log/twcaldav.log 2>&1
 ```
 
 Or use a systemd timer for more control:
@@ -159,7 +267,7 @@ Description=TaskWarrior CalDAV Sync
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/uv run --directory /path/to/twcaldav twcaldav
+ExecStart=/usr/bin/uv run --directory /path/to/twcaldav twcaldav sync
 
 # ~/.config/systemd/user/twcaldav.timer
 [Unit]
@@ -174,22 +282,23 @@ WantedBy=timers.target
 ```
 
 Enable with:
+
 ```bash
 systemctl --user enable --now twcaldav.timer
 ```
 
 ## Field Mapping
 
-| TaskWarrior | CalDAV |
-|-------------|--------|
-| description | SUMMARY |
-| status | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
-| due | DUE |
-| priority | PRIORITY (H→1, M→5, L→9) |
-| project | CATEGORIES |
-| tags | CATEGORIES |
-| annotations | DESCRIPTION |
-| caldav_uid (UDA) | UID (unique identifier) |
+| TaskWarrior      | CalDAV                                             |
+| ---------------- | -------------------------------------------------- |
+| description      | SUMMARY                                            |
+| status           | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
+| due              | DUE                                                |
+| priority         | PRIORITY (H→1, M→5, L→9)                           |
+| project          | CATEGORIES                                         |
+| tags             | CATEGORIES                                         |
+| annotations      | DESCRIPTION                                        |
+| caldav_uid (UDA) | UID (unique identifier)                            |
 
 ## Development
 
@@ -249,7 +358,8 @@ The project uses GitHub Actions for automated testing:
 
 Every push and pull request triggers the full test suite.
 
-See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD documentation.
+See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD
+documentation.
 
 ## Architecture
 
@@ -294,9 +404,9 @@ twcaldav/
 ### Sync not working
 
 1. Check configuration: `cat ~/.config/twcaldav/config.toml`
-2. Test CalDAV connection: `curl -u user:pass https://caldav-url/`
-3. Run with verbose logging: `uv run twcaldav -v`
-4. Try dry-run first: `uv run twcaldav --dry-run`
+2. Test CalDAV connection: `uv run twcaldav test-caldav`
+3. Run with verbose logging: `uv run twcaldav -v sync`
+4. Try dry-run first: `uv run twcaldav sync --dry-run`
 
 ### Tasks not appearing
 
@@ -308,7 +418,8 @@ twcaldav/
 ### Duplicates created
 
 - Ensure UDA is configured correctly: `task _get rc.uda.caldav_uid.type`
-- Check if tasks have CalDAV UID: `task list rc.report.list.columns=id,description,caldav_uid`
+- Check if tasks have CalDAV UID:
+  `task list rc.report.list.columns=id,description,caldav_uid`
 - Don't run multiple sync instances simultaneously
 - Check for stale tasks: `task status:deleted list`
 
