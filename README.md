@@ -1,6 +1,6 @@
 # twcaldav
 
-[![CI](https://github.com/YOUR_USERNAME/twcaldav_py/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/twcaldav_py/actions/workflows/ci.yml)
+[![CI](https://github.com/pcaro90/twcaldav/actions/workflows/ci.yml/badge.svg)](https://github.com/pcaro90/twcaldav/actions/workflows/ci.yml)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -23,8 +23,8 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/twcaldav_py.git
-cd twcaldav_py
+git clone https://github.com/pcaro90/twcaldav.git
+cd twcaldav
 
 # Install with uv
 uv sync
@@ -147,7 +147,7 @@ To sync automatically every hour:
 crontab -e
 
 # Add this line (adjust path to uv and project):
-0 * * * * cd /path/to/twcaldav_py && /path/to/uv run twcaldav >> /var/log/twcaldav.log 2>&1
+0 * * * * cd /path/to/twcaldav && /path/to/uv run twcaldav >> /var/log/twcaldav.log 2>&1
 ```
 
 Or use a systemd timer for more control:
@@ -159,7 +159,7 @@ Description=TaskWarrior CalDAV Sync
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/uv run --directory /path/to/twcaldav_py twcaldav
+ExecStart=/usr/bin/uv run --directory /path/to/twcaldav twcaldav
 
 # ~/.config/systemd/user/twcaldav.timer
 [Unit]
@@ -204,8 +204,8 @@ systemctl --user enable --now twcaldav.timer
 
 ```bash
 # Clone and install
-git clone https://github.com/YOUR_USERNAME/twcaldav_py.git
-cd twcaldav_py
+git clone https://github.com/pcaro90/twcaldav.git
+cd twcaldav
 uv sync
 
 # Run tests
@@ -268,7 +268,7 @@ See [.github/workflows/README.md](.github/workflows/README.md) for CI/CD documen
 ## Project Structure
 
 ```
-twcaldav_py/
+twcaldav/
 ├── src/twcaldav/           # Main package
 │   ├── caldav_client.py    # CalDAV API wrapper
 │   ├── taskwarrior.py      # TaskWarrior interface
