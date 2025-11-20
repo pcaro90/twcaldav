@@ -206,20 +206,24 @@ class CalDAVClient:
             ) from e
 
     def get_todos(self, calendar_id: str) -> list[VTodo]:
-        """Get all todos from a calendar.
+        """Get all todos from a calendar, including completed ones.
 
         Args:
             calendar_id: ID of calendar to query.
 
         Returns:
-            List of VTodo objects.
+            List of VTodo objects (including completed todos).
 
         Raises:
             CalDAVError: If query fails.
+
+        Note:
+            This method includes completed todos to support bidirectional sync
+            of task status changes.
         """
         try:
             calendar = self.get_calendar(calendar_id)
-            todos = calendar.todos()
+            todos = calendar.todos(include_completed=True)
 
             vtodos = []
             for todo in todos:
@@ -290,7 +294,7 @@ class CalDAVClient:
             calendar = self.get_calendar(calendar_id)
 
             # Find the existing todo by UID
-            todos = calendar.todos()
+            todos = calendar.todos(include_completed=True)
             for todo in todos:
                 cal = Calendar.from_ical(todo.data)
                 for component in cal.walk():
@@ -333,7 +337,7 @@ class CalDAVClient:
             calendar = self.get_calendar(calendar_id)
 
             # Find and delete the todo
-            todos = calendar.todos()
+            todos = calendar.todos(include_completed=True)
             for todo in todos:
                 cal = Calendar.from_ical(todo.data)
                 for component in cal.walk():

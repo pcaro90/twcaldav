@@ -138,11 +138,55 @@ def test_tw_to_caldav_create_completed(clean_test_environment):
     calendar = get_calendar(principal)
     assert calendar is not None
 
-    # Note: calendar.todos() might not return completed todos
-    # This test verifies the sync doesn't fail
+    # Note: This test creates, syncs, then completes the task
+    # For testing sync of pre-existing completed tasks (completed before first sync),
+    # see test_tw_to_caldav_sync_preexisting_completed
     get_todos(calendar)
-    # Completed tasks may or may not appear depending on CalDAV server behavior
     # The important thing is that sync succeeded without errors
+
+
+@pytest.mark.integration
+def test_tw_to_caldav_sync_preexisting_completed(clean_test_environment):
+    """Sync completed task that existed before first sync (no caldav_uid).
+
+    This test verifies that completed tasks without caldav_uid are discovered
+    and synced to CalDAV on the first sync run.
+    """
+    # Create and complete task WITHOUT syncing first
+    description = "Pre-existing completed TaskWarrior task"
+    task = create_task(description)
+    assert task is not None
+
+    # Complete immediately (before any sync)
+    assert complete_task(task["uuid"])
+
+    # Verify task has no caldav_uid yet (get all tasks, not just pending)
+    tasks = get_tasks(project="test", status=None)
+    completed_task = next((t for t in tasks if t["uuid"] == task["uuid"]), None)
+    assert completed_task is not None
+    assert completed_task.get("caldav_uid") is None
+    assert completed_task["status"] == "completed"
+
+    # Run sync for the first time
+    assert run_sync()
+
+    # Verify task now has caldav_uid
+    tasks = get_tasks(project="test", status=None)
+    synced_task = next((t for t in tasks if t["uuid"] == task["uuid"]), None)
+    assert synced_task is not None
+    assert synced_task.get("caldav_uid") is not None
+
+    # Verify todo exists in CalDAV with completed status
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # With include_completed=True, this should now work
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    status = get_todo_property(todo, "status")
+    assert status == "COMPLETED"
 
 
 @pytest.mark.integration

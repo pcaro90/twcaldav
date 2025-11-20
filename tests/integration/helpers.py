@@ -48,20 +48,32 @@ def run_task_command(
     return result.stdout, result.stderr, result.returncode
 
 
-def get_tasks(taskdata: str | None = None, project: str | None = None) -> list[dict]:
-    """Get all pending tasks from TaskWarrior.
+def get_tasks(
+    taskdata: str | None = None,
+    project: str | None = None,
+    status: str | None = "pending",
+) -> list[dict]:
+    """Get tasks from TaskWarrior.
 
     Args:
         taskdata: Optional TASKDATA path to use.
         project: Optional project filter (defaults to TW_PROJECT).
+        status: Optional status filter (defaults to "pending").
+                Use None to get all tasks regardless of status.
 
     Returns:
         List of task dictionaries.
     """
     proj = project or TW_PROJECT
-    stdout, _, _ = run_task_command(
-        [f"project:{proj}", "status:pending", "export"], taskdata=taskdata
-    )
+    args = [f"project:{proj}"]
+
+    # Add status filter if specified
+    if status is not None:
+        args.append(f"status:{status}")
+
+    args.append("export")
+
+    stdout, _, _ = run_task_command(args, taskdata=taskdata)
     if not stdout.strip():
         return []
     return json.loads(stdout)
@@ -257,16 +269,16 @@ def get_calendar(
 
 
 def get_todos(calendar: caldav.Calendar) -> list:
-    """Get all todos from CalDAV calendar.
+    """Get all todos from CalDAV calendar, including completed ones.
 
     Args:
         calendar: Calendar object.
 
     Returns:
-        List of todo objects.
+        List of todo objects (including completed).
     """
     try:
-        return calendar.todos()
+        return calendar.todos(include_completed=True)
     except Exception:
         return []
 

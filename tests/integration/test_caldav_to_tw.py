@@ -110,6 +110,39 @@ def test_caldav_to_tw_create_completed(clean_test_environment):
 
 
 @pytest.mark.integration
+def test_caldav_to_tw_sync_preexisting_completed(clean_test_environment):
+    """Sync completed todo that existed in CalDAV before first sync.
+
+    This test verifies that completed todos in CalDAV are discovered
+    and synced to TaskWarrior on the first sync run.
+    """
+    # Create completed todo in CalDAV before any sync
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    summary = "Pre-existing completed CalDAV todo"
+    assert create_todo(calendar, summary, status="COMPLETED")
+
+    # Run sync for the first time
+    assert run_sync()
+
+    # Verify task was created in TaskWarrior with completed status
+    # Use status=None to get all tasks regardless of status
+    tasks = get_tasks(project="test", status=None)
+    completed_tasks = [
+        t for t in tasks if t["description"] == summary and t["status"] == "completed"
+    ]
+    # There should be at least one completed task
+    assert len(completed_tasks) >= 1
+    # Verify the most recent one has the correct properties
+    latest_task = max(completed_tasks, key=lambda t: t["entry"])
+    assert latest_task["status"] == "completed"
+    assert latest_task.get("caldav_uid") is not None
+
+
+@pytest.mark.integration
 def test_caldav_to_tw_modify_description(clean_test_environment):
     """Modify todo description/summary in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
