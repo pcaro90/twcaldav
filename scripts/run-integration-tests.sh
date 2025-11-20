@@ -14,27 +14,42 @@ if ! command -v docker compose &> /dev/null; then
     exit 1
 fi
 
-# Build and run tests
+# Cleanup any existing containers/volumes from previous runs
+echo "Cleaning up previous test environment..."
+docker compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
+docker compose -f docker-compose.test.yml rm -fsv 2>/dev/null || true
+
+# Build and run tests with fresh containers
+echo ""
 echo "Building Docker images..."
 docker compose -f docker-compose.test.yml build
 
 echo ""
 echo "Running integration tests..."
-docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test-runner
+# Temporarily disable exit-on-error to capture test results even if tests fail
+set +e
+docker compose -f docker-compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from test-runner
 
 # Capture exit code
 EXIT_CODE=$?
+set -e
 
 # Copy test results before cleanup
 echo ""
 echo "Copying test results..."
 docker cp twcaldav-test-runner:/app/test-results.xml . 2>/dev/null && echo "✓ Test results copied to test-results.xml" || echo "Note: No test results file found (this is OK if tests didn't complete)"
 
-# Cleanup
+# Cleanup after test run (always run, even if tests failed)
 echo ""
-echo "Cleaning up containers..."
-docker compose -f docker-compose.test.yml down -v
-docker compose -f docker-compose.test.yml rm -fsv
+echo "Cleaning up test environment..."
+set +e  # Don't exit if cleanup commands fail
+docker compose -f docker-compose.test.yml down -v --remove-orphans 2>&1
+docker compose -f docker-compose.test.yml rm -fsv 2>&1
+
+# Remove any dangling test volumes
+echo "Removing dangling volumes..."
+docker volume ls -q -f "dangling=true" -f "name=twcaldav" | xargs -r docker volume rm 2>/dev/null || true
+set -e
 
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""
