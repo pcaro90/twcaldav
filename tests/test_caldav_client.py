@@ -12,7 +12,7 @@ from twcaldav.caldav_client import CalDAVClient, CalDAVError, VTodo
 class TestVTodo:
     """Tests for VTodo dataclass."""
 
-    def test_from_icalendar_minimal(self):
+    def test_from_icalendar_minimal(self) -> None:
         """Test creating VTodo from minimal icalendar component."""
         todo = Todo()
         todo.add("UID", "test-uid-123")
@@ -26,7 +26,7 @@ class TestVTodo:
         assert vtodo.description is None
         assert vtodo.due is None
 
-    def test_from_icalendar_full(self):
+    def test_from_icalendar_full(self) -> None:
         """Test creating VTodo from complete icalendar component."""
         todo = Todo()
         todo.add("UID", "test-uid-123")
@@ -49,7 +49,7 @@ class TestVTodo:
         assert vtodo.priority == 5
         assert vtodo.categories == ["work", "important"]
 
-    def test_to_icalendar_minimal(self):
+    def test_to_icalendar_minimal(self) -> None:
         """Test converting minimal VTodo to icalendar."""
         vtodo = VTodo(
             uid="test-uid-123",
@@ -62,7 +62,7 @@ class TestVTodo:
         assert str(todo.get("SUMMARY")) == "Test task"
         assert todo.get("STATUS") is None
 
-    def test_to_icalendar_full(self):
+    def test_to_icalendar_full(self) -> None:
         """Test converting complete VTodo to icalendar."""
         vtodo = VTodo(
             uid="test-uid-123",
@@ -90,7 +90,7 @@ class TestCalDAVClient:
     """Tests for CalDAVClient class."""
 
     @patch("caldav.DAVClient")
-    def test_init_success(self, mock_dav_client):
+    def test_init_success(self, mock_dav_client) -> None:
         """Test successful initialization."""
         mock_principal = Mock()
         mock_client_instance = Mock()
@@ -106,7 +106,7 @@ class TestCalDAVClient:
         mock_dav_client.assert_called_once()
 
     @patch("caldav.DAVClient")
-    def test_init_connection_failure(self, mock_dav_client):
+    def test_init_connection_failure(self, mock_dav_client) -> None:
         """Test initialization with connection failure."""
         mock_dav_client.side_effect = Exception("Connection failed")
 
@@ -116,7 +116,7 @@ class TestCalDAVClient:
             )
 
     @patch("caldav.DAVClient")
-    def test_list_calendars(self, mock_dav_client):
+    def test_list_calendars(self, mock_dav_client) -> None:
         """Test listing calendars."""
         mock_cal1 = Mock()
         mock_cal1.name = "Work"
@@ -138,7 +138,7 @@ class TestCalDAVClient:
         assert calendars == ["Work", "Personal"]
 
     @patch("caldav.DAVClient")
-    def test_get_calendar_found(self, mock_dav_client):
+    def test_get_calendar_found(self, mock_dav_client) -> None:
         """Test getting calendar by ID."""
         mock_cal1 = Mock()
         mock_cal1.id = "Work"
@@ -160,7 +160,7 @@ class TestCalDAVClient:
         assert calendar == mock_cal1
 
     @patch("caldav.DAVClient")
-    def test_get_calendar_not_found(self, mock_dav_client):
+    def test_get_calendar_not_found(self, mock_dav_client) -> None:
         """Test getting non-existent calendar."""
         mock_cal = Mock()
         mock_cal.id = "Work"
@@ -180,7 +180,7 @@ class TestCalDAVClient:
             client.get_calendar("NonExistent")
 
     @patch("caldav.DAVClient")
-    def test_get_todos(self, mock_dav_client):
+    def test_get_todos(self, mock_dav_client) -> None:
         """Test getting todos from calendar."""
         # Create mock todo
         todo_component = Todo()
@@ -214,7 +214,7 @@ class TestCalDAVClient:
         assert todos[0].summary == "Test task"
 
     @patch("caldav.DAVClient")
-    def test_create_todo(self, mock_dav_client):
+    def test_create_todo(self, mock_dav_client) -> None:
         """Test creating a todo."""
         mock_calendar = Mock()
         mock_calendar.id = "Work"
@@ -237,7 +237,7 @@ class TestCalDAVClient:
         mock_calendar.save_todo.assert_called_once()
 
     @patch("caldav.DAVClient")
-    def test_delete_todo(self, mock_dav_client):
+    def test_delete_todo(self, mock_dav_client) -> None:
         """Test deleting a todo."""
         # Create mock todo
         todo_component = Todo()
@@ -270,7 +270,7 @@ class TestCalDAVClient:
         mock_todo.delete.assert_called_once()
 
     @patch("caldav.DAVClient")
-    def test_get_todo_by_uid(self, mock_dav_client):
+    def test_get_todo_by_uid(self, mock_dav_client) -> None:
         """Test getting todo by UID."""
         # Create mock todos
         todo1 = Todo()

@@ -14,7 +14,7 @@ from twcaldav.taskwarrior import Task, TaskWarrior, TaskWarriorError
 class TestTask:
     """Tests for Task dataclass."""
 
-    def test_from_dict_minimal(self):
+    def test_from_dict_minimal(self) -> None:
         """Test creating Task from minimal dictionary."""
         data = {
             "uuid": "12345678-1234-1234-1234-123456789012",
@@ -36,7 +36,7 @@ class TestTask:
         assert task.tags is None
         assert task.annotations is None
 
-    def test_from_dict_full(self):
+    def test_from_dict_full(self) -> None:
         """Test creating Task from complete dictionary."""
         data = {
             "uuid": "12345678-1234-1234-1234-123456789012",
@@ -62,7 +62,7 @@ class TestTask:
         assert task.tags == ["important", "urgent"]
         assert len(task.annotations) == 1
 
-    def test_to_dict_minimal(self):
+    def test_to_dict_minimal(self) -> None:
         """Test converting minimal Task to dictionary."""
         task = Task(
             uuid="12345678-1234-1234-1234-123456789012",
@@ -80,7 +80,7 @@ class TestTask:
         assert "modified" not in data
         assert "project" not in data
 
-    def test_to_dict_full(self):
+    def test_to_dict_full(self) -> None:
         """Test converting complete Task to dictionary."""
         task = Task(
             uuid="12345678-1234-1234-1234-123456789012",
@@ -109,7 +109,7 @@ class TestTaskWarrior:
     """Tests for TaskWarrior class."""
 
     @patch("subprocess.run")
-    def test_init_success(self, mock_run):
+    def test_init_success(self, mock_run) -> None:
         """Test successful initialization."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
 
@@ -120,7 +120,7 @@ class TestTaskWarrior:
         mock_run.assert_called_once()
 
     @patch("subprocess.run")
-    def test_init_binary_not_found(self, mock_run):
+    def test_init_binary_not_found(self, mock_run) -> None:
         """Test initialization when binary is not found."""
         mock_run.side_effect = FileNotFoundError()
 
@@ -128,7 +128,7 @@ class TestTaskWarrior:
             TaskWarrior()
 
     @patch("subprocess.run")
-    def test_init_custom_binary(self, mock_run):
+    def test_init_custom_binary(self, mock_run) -> None:
         """Test initialization with custom binary path."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
 
@@ -137,7 +137,7 @@ class TestTaskWarrior:
         assert tw.task_bin == "/usr/local/bin/task"
 
     @patch("subprocess.run")
-    def test_init_with_taskdata(self, mock_run):
+    def test_init_with_taskdata(self, mock_run) -> None:
         """Test initialization with custom TASKDATA."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
 
@@ -146,7 +146,7 @@ class TestTaskWarrior:
         assert tw.taskdata == Path("/tmp/taskdata")
 
     @patch("subprocess.run")
-    def test_export_tasks_empty(self, mock_run):
+    def test_export_tasks_empty(self, mock_run) -> None:
         """Test exporting when no tasks match."""
         # First call for init check
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
@@ -159,7 +159,7 @@ class TestTaskWarrior:
         assert tasks == []
 
     @patch("subprocess.run")
-    def test_export_tasks_single(self, mock_run):
+    def test_export_tasks_single(self, mock_run) -> None:
         """Test exporting a single task."""
         # First call for init
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
@@ -185,7 +185,7 @@ class TestTaskWarrior:
         assert tasks[0].description == "Test task"
 
     @patch("subprocess.run")
-    def test_export_tasks_with_project_filter(self, mock_run):
+    def test_export_tasks_with_project_filter(self, mock_run) -> None:
         """Test exporting tasks filtered by project."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -212,7 +212,7 @@ class TestTaskWarrior:
         assert "project:work" in call_args
 
     @patch("subprocess.run")
-    def test_export_tasks_with_status_filter(self, mock_run):
+    def test_export_tasks_with_status_filter(self, mock_run) -> None:
         """Test exporting tasks filtered by status."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -238,7 +238,7 @@ class TestTaskWarrior:
         assert "status:completed" in call_args
 
     @patch("subprocess.run")
-    def test_export_tasks_json_decode_error(self, mock_run):
+    def test_export_tasks_json_decode_error(self, mock_run) -> None:
         """Test handling of invalid JSON from TaskWarrior."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -249,7 +249,7 @@ class TestTaskWarrior:
             tw.export_tasks()
 
     @patch("subprocess.run")
-    def test_import_tasks(self, mock_run):
+    def test_import_tasks(self, mock_run) -> None:
         """Test importing tasks."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -272,7 +272,7 @@ class TestTaskWarrior:
         assert call_args[1]["input"] is not None
 
     @patch("subprocess.run")
-    def test_import_tasks_empty(self, mock_run):
+    def test_import_tasks_empty(self, mock_run) -> None:
         """Test importing empty task list."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -283,7 +283,7 @@ class TestTaskWarrior:
         assert mock_run.call_count == 1
 
     @patch("subprocess.run")
-    def test_create_task(self, mock_run):
+    def test_create_task(self, mock_run) -> None:
         """Test creating a single task."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -303,7 +303,7 @@ class TestTaskWarrior:
         assert "import" in call_args
 
     @patch("subprocess.run")
-    def test_modify_task(self, mock_run):
+    def test_modify_task(self, mock_run) -> None:
         """Test modifying a task."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -322,7 +322,7 @@ class TestTaskWarrior:
         assert any("priority:" in arg for arg in call_args)
 
     @patch("subprocess.run")
-    def test_delete_task(self, mock_run):
+    def test_delete_task(self, mock_run) -> None:
         """Test deleting a task."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -337,7 +337,7 @@ class TestTaskWarrior:
         assert "rc.confirmation=off" in call_args
 
     @patch("subprocess.run")
-    def test_add_annotation(self, mock_run):
+    def test_add_annotation(self, mock_run) -> None:
         """Test adding an annotation."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -352,7 +352,7 @@ class TestTaskWarrior:
         assert "Test annotation" in call_args
 
     @patch("subprocess.run")
-    def test_get_task_by_uuid(self, mock_run):
+    def test_get_task_by_uuid(self, mock_run) -> None:
         """Test getting a specific task by UUID."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -375,7 +375,7 @@ class TestTaskWarrior:
         assert task.uuid == "12345678-1234-1234-1234-123456789012"
 
     @patch("subprocess.run")
-    def test_get_task_by_uuid_not_found(self, mock_run):
+    def test_get_task_by_uuid_not_found(self, mock_run) -> None:
         """Test getting a non-existent task."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -386,7 +386,7 @@ class TestTaskWarrior:
         assert task is None
 
     @patch("subprocess.run")
-    def test_get_tasks_by_project(self, mock_run):
+    def test_get_tasks_by_project(self, mock_run) -> None:
         """Test getting tasks by project."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()
@@ -410,7 +410,7 @@ class TestTaskWarrior:
         assert tasks[0].project == "work"
 
     @patch("subprocess.run")
-    def test_command_failure(self, mock_run):
+    def test_command_failure(self, mock_run) -> None:
         """Test handling of command failure."""
         mock_run.return_value = Mock(stdout="3.0.0", returncode=0)
         tw = TaskWarrior()

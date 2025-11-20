@@ -97,7 +97,7 @@ class TaskWarriorError(Exception):
 class TaskWarrior:
     """Interface to TaskWarrior via the task binary."""
 
-    def __init__(self, task_bin: str = "task", taskdata: Path | None = None):
+    def __init__(self, task_bin: str = "task", taskdata: Path | None = None) -> None:
         """Initialize TaskWarrior interface.
 
         Args:

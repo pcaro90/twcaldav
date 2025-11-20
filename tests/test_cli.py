@@ -11,7 +11,7 @@ from twcaldav.config import ProjectCalendarMapping
 from twcaldav.taskwarrior import Task
 
 
-def test_parse_args_defaults():
+def test_parse_args_defaults() -> None:
     """Test default arguments."""
     args = parse_args(["sync"])
 
@@ -23,7 +23,7 @@ def test_parse_args_defaults():
     assert args.no_delete is False
 
 
-def test_parse_args_verbose():
+def test_parse_args_verbose() -> None:
     """Test verbose flag."""
     args = parse_args(["sync", "-v"])
     assert args.verbose is True
@@ -32,7 +32,7 @@ def test_parse_args_verbose():
     assert args.verbose is True
 
 
-def test_parse_args_dry_run():
+def test_parse_args_dry_run() -> None:
     """Test dry-run flag."""
     args = parse_args(["sync", "-n"])
     assert args.dry_run is True
@@ -41,7 +41,7 @@ def test_parse_args_dry_run():
     assert args.dry_run is True
 
 
-def test_parse_args_config():
+def test_parse_args_config() -> None:
     """Test config path argument."""
     args = parse_args(["sync", "-c", "/path/to/config.toml"])
     assert args.config == Path("/path/to/config.toml")
@@ -50,25 +50,25 @@ def test_parse_args_config():
     assert args.config == Path("/another/path.toml")
 
 
-def test_parse_args_delete():
+def test_parse_args_delete() -> None:
     """Test delete flag."""
     args = parse_args(["sync", "--delete"])
     assert args.delete is True
 
 
-def test_parse_args_no_delete():
+def test_parse_args_no_delete() -> None:
     """Test no-delete flag."""
     args = parse_args(["sync", "--no-delete"])
     assert args.no_delete is True
 
 
-def test_parse_args_conflicting_delete_flags():
+def test_parse_args_conflicting_delete_flags() -> None:
     """Test that conflicting delete flags raise error."""
     with pytest.raises(SystemExit):
         parse_args(["sync", "--delete", "--no-delete"])
 
 
-def test_parse_args_combined():
+def test_parse_args_combined() -> None:
     """Test combining multiple arguments."""
     args = parse_args(["sync", "-v", "-c", "/my/config.toml", "-n", "--delete"])
 
@@ -88,7 +88,7 @@ def test_parse_args_combined():
 @patch("twcaldav.config.Config")
 def test_main_success(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test successful sync execution."""
     # Create a temporary config file
     config_file = tmp_path / "config.toml"
@@ -158,7 +158,7 @@ caldav_calendar = "Work Tasks"
 @patch("twcaldav.config.Config")
 def test_main_dry_run(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test dry-run mode."""
     # Create config
     config_file = tmp_path / "config.toml"
@@ -206,7 +206,7 @@ caldav_calendar = "Work Tasks"
 
 
 @patch("twcaldav.config.Config")
-def test_main_config_not_found(mock_config_cls, tmp_path):
+def test_main_config_not_found(mock_config_cls, tmp_path) -> None:
     """Test handling of missing config file."""
     mock_config_cls.from_file.side_effect = FileNotFoundError("Config not found")
     config_file = tmp_path / "nonexistent.toml"
@@ -224,7 +224,7 @@ def test_main_config_not_found(mock_config_cls, tmp_path):
 @patch("twcaldav.config.Config")
 def test_main_uda_not_configured(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test handling when UDA is not configured."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -263,7 +263,7 @@ caldav_calendar = "Work Tasks"
 
 
 @patch("twcaldav.config.Config")
-def test_main_config_invalid(mock_config_cls, tmp_path):
+def test_main_config_invalid(mock_config_cls, tmp_path) -> None:
     """Test handling of invalid config."""
     mock_config_cls.from_file.side_effect = ValueError("Invalid config")
 
@@ -283,7 +283,7 @@ def test_main_config_invalid(mock_config_cls, tmp_path):
 @patch("twcaldav.config.Config")
 def test_main_delete_flag_override(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test --delete flag overrides config."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -331,7 +331,7 @@ caldav_calendar = "Work Tasks"
 @patch("twcaldav.config.Config")
 def test_main_sync_with_errors(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test handling of sync errors."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -373,7 +373,7 @@ caldav_calendar = "Work Tasks"
 
 @patch("twcaldav.taskwarrior.TaskWarrior")
 @patch("twcaldav.config.Config")
-def test_main_client_init_failure(mock_config_cls, mock_tw_cls, tmp_path):
+def test_main_client_init_failure(mock_config_cls, mock_tw_cls, tmp_path) -> None:
     """Test handling of client initialization failure."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -412,7 +412,7 @@ caldav_calendar = "Work Tasks"
 @patch("twcaldav.config.Config")
 def test_main_sync_exception(
     mock_config_cls, mock_tw_cls, mock_caldav_cls, mock_sync_cls, tmp_path
-):
+) -> None:
     """Test handling of sync exception."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -453,7 +453,7 @@ caldav_calendar = "Work Tasks"
 # Tests for new subcommands
 
 
-def test_parse_args_unlink_subcommand():
+def test_parse_args_unlink_subcommand() -> None:
     """Test unlink subcommand parsing."""
     args = parse_args(["unlink"])
     assert args.command == "unlink"
@@ -470,13 +470,13 @@ def test_parse_args_unlink_subcommand():
     assert args.dry_run is True
 
 
-def test_parse_args_test_caldav_subcommand():
+def test_parse_args_test_caldav_subcommand() -> None:
     """Test test-caldav subcommand parsing."""
     args = parse_args(["test-caldav"])
     assert args.command == "test-caldav"
 
 
-def test_parse_args_no_subcommand_shows_help():
+def test_parse_args_no_subcommand_shows_help() -> None:
     """Test that no subcommand shows help and exits."""
     # Should print help and exit when no subcommand specified
     with pytest.raises(SystemExit) as exc_info:
@@ -484,7 +484,7 @@ def test_parse_args_no_subcommand_shows_help():
     assert exc_info.value.code == 0  # Exit code 0 for help
 
 
-def test_parse_args_verbose_after_subcommand():
+def test_parse_args_verbose_after_subcommand() -> None:
     """Test that -v works after subcommand."""
     args = parse_args(["sync", "-v"])
     assert args.command == "sync"
@@ -502,7 +502,7 @@ def test_parse_args_verbose_after_subcommand():
 
 @patch("twcaldav.taskwarrior.TaskWarrior")
 @patch("twcaldav.config.Config")
-def test_cmd_unlink_success(mock_config_cls, mock_tw_cls, tmp_path):
+def test_cmd_unlink_success(mock_config_cls, mock_tw_cls, tmp_path) -> None:
     """Test successful unlink execution."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -553,7 +553,7 @@ caldav_calendar = "Work Tasks"
 
 @patch("twcaldav.taskwarrior.TaskWarrior")
 @patch("twcaldav.config.Config")
-def test_cmd_unlink_with_project_filter(mock_config_cls, mock_tw_cls, tmp_path):
+def test_cmd_unlink_with_project_filter(mock_config_cls, mock_tw_cls, tmp_path) -> None:
     """Test unlink with project filter."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -585,7 +585,7 @@ caldav_calendar = "Work Tasks"
 
 @patch("twcaldav.taskwarrior.TaskWarrior")
 @patch("twcaldav.config.Config")
-def test_cmd_unlink_dry_run(mock_config_cls, mock_tw_cls, tmp_path):
+def test_cmd_unlink_dry_run(mock_config_cls, mock_tw_cls, tmp_path) -> None:
     """Test unlink in dry-run mode."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -626,7 +626,7 @@ caldav_calendar = "Work Tasks"
 
 @patch("twcaldav.caldav_client.CalDAVClient")
 @patch("twcaldav.config.Config")
-def test_cmd_test_caldav_success(mock_config_cls, mock_caldav_cls, tmp_path):
+def test_cmd_test_caldav_success(mock_config_cls, mock_caldav_cls, tmp_path) -> None:
     """Test successful CalDAV connection test."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
@@ -672,7 +672,7 @@ caldav_calendar = "Work Tasks"
 
 @patch("twcaldav.caldav_client.CalDAVClient")
 @patch("twcaldav.config.Config")
-def test_cmd_test_caldav_failure(mock_config_cls, mock_caldav_cls, tmp_path):
+def test_cmd_test_caldav_failure(mock_config_cls, mock_caldav_cls, tmp_path) -> None:
     """Test CalDAV connection test failure."""
     config_file = tmp_path / "config.toml"
     config_file.write_text("""

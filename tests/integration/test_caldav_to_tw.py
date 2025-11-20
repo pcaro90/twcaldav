@@ -17,7 +17,7 @@ from tests.integration.helpers import (
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_create_simple(clean_test_environment):
+def test_caldav_to_tw_create_simple(clean_test_environment) -> None:
     """Create simple todo in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -40,7 +40,7 @@ def test_caldav_to_tw_create_simple(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_create_with_due_date(clean_test_environment):
+def test_caldav_to_tw_create_with_due_date(clean_test_environment) -> None:
     """Create todo with due date in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -64,7 +64,7 @@ def test_caldav_to_tw_create_with_due_date(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_create_with_priority(clean_test_environment):
+def test_caldav_to_tw_create_with_priority(clean_test_environment) -> None:
     """Create todo with priority in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -87,7 +87,7 @@ def test_caldav_to_tw_create_with_priority(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_create_completed(clean_test_environment):
+def test_caldav_to_tw_create_completed(clean_test_environment) -> None:
     """Create completed todo in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -110,7 +110,7 @@ def test_caldav_to_tw_create_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_sync_preexisting_completed(clean_test_environment):
+def test_caldav_to_tw_sync_preexisting_completed(clean_test_environment) -> None:
     """Sync completed todo that existed in CalDAV before first sync.
 
     This test verifies that completed todos in CalDAV are discovered
@@ -143,7 +143,7 @@ def test_caldav_to_tw_sync_preexisting_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_description(clean_test_environment):
+def test_caldav_to_tw_modify_description(clean_test_environment) -> None:
     """Modify todo description/summary in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -181,7 +181,7 @@ def test_caldav_to_tw_modify_description(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_due_date(clean_test_environment):
+def test_caldav_to_tw_modify_due_date(clean_test_environment) -> None:
     """Modify todo due date in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -218,7 +218,7 @@ def test_caldav_to_tw_modify_due_date(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_priority(clean_test_environment):
+def test_caldav_to_tw_modify_priority(clean_test_environment) -> None:
     """Modify todo priority in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -253,7 +253,7 @@ def test_caldav_to_tw_modify_priority(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_status_to_completed(clean_test_environment):
+def test_caldav_to_tw_modify_status_to_completed(clean_test_environment) -> None:
     """Mark todo as completed in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -289,7 +289,7 @@ def test_caldav_to_tw_modify_status_to_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_delete(clean_test_environment):
+def test_caldav_to_tw_delete(clean_test_environment) -> None:
     """Delete todo in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -320,7 +320,7 @@ def test_caldav_to_tw_delete(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_annotation_create(clean_test_environment):
+def test_caldav_to_tw_annotation_create(clean_test_environment) -> None:
     """Create todo with annotation in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -351,7 +351,7 @@ def test_caldav_to_tw_annotation_create(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_annotation_add(clean_test_environment):
+def test_caldav_to_tw_annotation_add(clean_test_environment) -> None:
     """Add annotation to existing todo in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -405,7 +405,7 @@ def test_caldav_to_tw_annotation_add(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_annotation_multiple(clean_test_environment):
+def test_caldav_to_tw_annotation_multiple(clean_test_environment) -> None:
     """Create todo with multiple annotations, verify they sync to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -442,7 +442,9 @@ def test_caldav_to_tw_annotation_multiple(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_annotation_bidirectional_no_duplication(clean_test_environment):
+def test_caldav_to_tw_annotation_bidirectional_no_duplication(
+    clean_test_environment,
+) -> None:
     """Test that annotations don't duplicate on bidirectional sync."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -483,7 +485,7 @@ def test_caldav_to_tw_annotation_bidirectional_no_duplication(clean_test_environ
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_create_with_tags(clean_test_environment):
+def test_caldav_to_tw_create_with_tags(clean_test_environment) -> None:
     """Create todo with tags/categories in CalDAV, verify they sync to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -506,7 +508,7 @@ def test_caldav_to_tw_create_with_tags(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_tags_add(clean_test_environment):
+def test_caldav_to_tw_modify_tags_add(clean_test_environment) -> None:
     """Add tags to todo in CalDAV, verify they sync to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -542,7 +544,7 @@ def test_caldav_to_tw_modify_tags_add(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_modify_tags_remove(clean_test_environment):
+def test_caldav_to_tw_modify_tags_remove(clean_test_environment) -> None:
     """Remove tags from todo in CalDAV, verify they sync to TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()
@@ -576,7 +578,7 @@ def test_caldav_to_tw_modify_tags_remove(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_caldav_to_tw_dry_run(clean_test_environment):
+def test_caldav_to_tw_dry_run(clean_test_environment) -> None:
     """Test dry-run mode doesn't modify TaskWarrior."""
     # Get CalDAV client
     _, principal = get_caldav_client()

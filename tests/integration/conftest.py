@@ -15,7 +15,7 @@ from tests.integration.helpers import (
 )
 
 
-def pytest_configure(config):
+def pytest_configure(config) -> None:
     """Register custom markers."""
     config.addinivalue_line(
         "markers",
@@ -24,7 +24,7 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def check_integration_environment():
+def check_integration_environment() -> None:
     """Check if integration test environment is available.
 
     Integration tests require:
@@ -45,7 +45,7 @@ def check_integration_environment():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_taskwarrior_uda():
+def setup_taskwarrior_uda() -> None:
     """Configure TaskWarrior UDA for the global TASKDATA directory.
 
     This fixture runs once per test session and configures the caldav_uid UDA

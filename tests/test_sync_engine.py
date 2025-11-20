@@ -69,7 +69,7 @@ def sync_engine(sample_config, mock_tw, mock_caldav):
 class TestSyncStats:
     """Tests for SyncStats dataclass."""
 
-    def test_sync_stats_initialization(self):
+    def test_sync_stats_initialization(self) -> None:
         """Test that SyncStats initializes with zeros."""
         stats = SyncStats()
         assert stats.tw_created == 0
@@ -81,7 +81,7 @@ class TestSyncStats:
         assert stats.skipped == 0
         assert stats.errors == 0
 
-    def test_sync_stats_str(self):
+    def test_sync_stats_str(self) -> None:
         """Test SyncStats string representation."""
         stats = SyncStats(
             tw_created=2,
@@ -103,7 +103,7 @@ class TestSyncStats:
 class TestTaskPair:
     """Tests for TaskPair dataclass."""
 
-    def test_task_pair_creation(self):
+    def test_task_pair_creation(self) -> None:
         """Test TaskPair creation."""
         tw_task = Task(
             uuid="test-uuid",
@@ -128,14 +128,14 @@ class TestTaskPair:
 class TestSyncEngine:
     """Tests for SyncEngine class."""
 
-    def test_init(self, sync_engine, sample_config, mock_tw, mock_caldav):
+    def test_init(self, sync_engine, sample_config, mock_tw, mock_caldav) -> None:
         """Test SyncEngine initialization."""
         assert sync_engine.config == sample_config
         assert sync_engine.tw == mock_tw
         assert sync_engine.caldav == mock_caldav
         assert sync_engine.dry_run is False
 
-    def test_init_dry_run(self, sample_config, mock_tw, mock_caldav):
+    def test_init_dry_run(self, sample_config, mock_tw, mock_caldav) -> None:
         """Test SyncEngine initialization with dry_run mode."""
         engine = SyncEngine(
             config=sample_config,
@@ -145,7 +145,9 @@ class TestSyncEngine:
         )
         assert engine.dry_run is True
 
-    def test_discover_and_correlate_empty(self, sync_engine, mock_tw, mock_caldav):
+    def test_discover_and_correlate_empty(
+        self, sync_engine, mock_tw, mock_caldav
+    ) -> None:
         """Test discovery with no tasks."""
         mock_tw.export_tasks.return_value = []
         mock_caldav.get_calendar.return_value = Mock()
@@ -157,7 +159,9 @@ class TestSyncEngine:
         # Should call export_tasks once for each mapped project (no status filter)
         assert mock_tw.export_tasks.call_count == 2
 
-    def test_discover_and_correlate_tw_only(self, sync_engine, mock_tw, mock_caldav):
+    def test_discover_and_correlate_tw_only(
+        self, sync_engine, mock_tw, mock_caldav
+    ) -> None:
         """Test discovery with TaskWarrior tasks only."""
         tw_task = Task(
             uuid="tw-123",
@@ -180,7 +184,7 @@ class TestSyncEngine:
 
     def test_discover_and_correlate_caldav_only(
         self, sync_engine, mock_tw, mock_caldav
-    ):
+    ) -> None:
         """Test discovery with CalDAV todos only."""
         caldav_todo = VTodo(
             uid="cd-123",
@@ -199,7 +203,9 @@ class TestSyncEngine:
         assert pairs[0].action == SyncAction.CREATE
         assert pairs[0].direction == SyncDirection.CALDAV_TO_TW
 
-    def test_discover_and_correlate_matched(self, sync_engine, mock_tw, mock_caldav):
+    def test_discover_and_correlate_matched(
+        self, sync_engine, mock_tw, mock_caldav
+    ) -> None:
         """Test discovery with matched tasks (equal timestamps)."""
         now = datetime.now()
         tw_task = Task(
@@ -230,13 +236,13 @@ class TestSyncEngine:
         assert pairs[0].action == SyncAction.SKIP
         assert "timestamps equal" in pairs[0].reason.lower()
 
-    def test_classify_both_missing(self, sync_engine):
+    def test_classify_both_missing(self, sync_engine) -> None:
         """Test classification when both tasks are missing."""
         pair = sync_engine._classify_task_pair(None, None)
         assert pair.action == SyncAction.SKIP
         assert "missing" in pair.reason.lower()
 
-    def test_classify_tw_only_pending(self, sync_engine):
+    def test_classify_tw_only_pending(self, sync_engine) -> None:
         """Test classification with pending TaskWarrior task only."""
         tw_task = Task(
             uuid="tw-123",
@@ -248,7 +254,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.CREATE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
-    def test_classify_tw_only_deleted(self, sync_engine):
+    def test_classify_tw_only_deleted(self, sync_engine) -> None:
         """Test classification with deleted TaskWarrior task only."""
         tw_task = Task(
             uuid="tw-123",
@@ -260,21 +266,21 @@ class TestSyncEngine:
         assert pair.action == SyncAction.SKIP
         assert "deleted" in pair.reason.lower()
 
-    def test_classify_caldav_only_active(self, sync_engine):
+    def test_classify_caldav_only_active(self, sync_engine) -> None:
         """Test classification with active CalDAV todo only."""
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
         pair = sync_engine._classify_task_pair(None, caldav_todo)
         assert pair.action == SyncAction.CREATE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
 
-    def test_classify_caldav_only_cancelled(self, sync_engine):
+    def test_classify_caldav_only_cancelled(self, sync_engine) -> None:
         """Test classification with cancelled CalDAV todo only."""
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="CANCELLED")
         pair = sync_engine._classify_task_pair(None, caldav_todo)
         assert pair.action == SyncAction.SKIP
         assert "cancelled" in pair.reason.lower()
 
-    def test_classify_both_deleted(self, sync_engine):
+    def test_classify_both_deleted(self, sync_engine) -> None:
         """Test classification when both are deleted."""
         tw_task = Task(
             uuid="tw-123",
@@ -287,7 +293,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.SKIP
         assert "both deleted" in pair.reason.lower()
 
-    def test_classify_tw_deleted_deletion_enabled(self, sync_engine):
+    def test_classify_tw_deleted_deletion_enabled(self, sync_engine) -> None:
         """Test classification when TW is deleted and deletion is enabled."""
         tw_task = Task(
             uuid="tw-123",
@@ -302,7 +308,7 @@ class TestSyncEngine:
 
     def test_classify_tw_deleted_deletion_disabled(
         self, sample_config, mock_tw, mock_caldav
-    ):
+    ) -> None:
         """Test classification when TW is deleted and deletion is disabled."""
         config = Config(
             caldav=sample_config.caldav,
@@ -322,7 +328,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.SKIP
         assert "deletion disabled" in pair.reason.lower()
 
-    def test_classify_caldav_cancelled_deletion_enabled(self, sync_engine):
+    def test_classify_caldav_cancelled_deletion_enabled(self, sync_engine) -> None:
         """Test classification when CalDAV is cancelled and deletion is enabled."""
         tw_task = Task(
             uuid="tw-123",
@@ -335,7 +341,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.DELETE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
 
-    def test_classify_tw_more_recent(self, sync_engine):
+    def test_classify_tw_more_recent(self, sync_engine) -> None:
         """Test classification when TaskWarrior is more recent."""
         now = datetime.now()
         tw_task = Task(
@@ -354,7 +360,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.UPDATE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
-    def test_classify_caldav_more_recent(self, sync_engine):
+    def test_classify_caldav_more_recent(self, sync_engine) -> None:
         """Test classification when CalDAV is more recent."""
         now = datetime.now()
         tw_task = Task(
@@ -374,7 +380,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.UPDATE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
 
-    def test_classify_caldav_no_timestamp(self, sync_engine):
+    def test_classify_caldav_no_timestamp(self, sync_engine) -> None:
         """Test classification when CalDAV lacks timestamp."""
         tw_task = Task(
             uuid="tw-123",
@@ -395,7 +401,7 @@ class TestSyncEngine:
         assert pair.action == SyncAction.UPDATE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
-    def test_execute_sync_action_skip(self, sync_engine):
+    def test_execute_sync_action_skip(self, sync_engine) -> None:
         """Test executing a SKIP action."""
         pair = TaskPair(
             tw_task=None,
@@ -408,7 +414,9 @@ class TestSyncEngine:
         assert sync_engine.stats.skipped == 1
 
     @patch("twcaldav.sync_engine.taskwarrior_to_caldav")
-    def test_execute_create_tw_to_caldav(self, mock_convert, sync_engine, mock_caldav):
+    def test_execute_create_tw_to_caldav(
+        self, mock_convert, sync_engine, mock_caldav
+    ) -> None:
         """Test executing CREATE from TaskWarrior to CalDAV."""
         tw_task = Task(
             uuid="tw-123",
@@ -435,7 +443,9 @@ class TestSyncEngine:
         assert sync_engine.stats.caldav_created == 1
 
     @patch("twcaldav.sync_engine.caldav_to_taskwarrior")
-    def test_execute_create_caldav_to_tw(self, mock_convert, sync_engine, mock_tw):
+    def test_execute_create_caldav_to_tw(
+        self, mock_convert, sync_engine, mock_tw
+    ) -> None:
         """Test executing CREATE from CalDAV to TaskWarrior."""
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
         pair = TaskPair(
@@ -461,7 +471,9 @@ class TestSyncEngine:
         assert sync_engine.stats.tw_created == 1
 
     @patch("twcaldav.sync_engine.taskwarrior_to_caldav")
-    def test_execute_update_tw_to_caldav(self, mock_convert, sync_engine, mock_caldav):
+    def test_execute_update_tw_to_caldav(
+        self, mock_convert, sync_engine, mock_caldav
+    ) -> None:
         """Test executing UPDATE from TaskWarrior to CalDAV."""
         tw_task = Task(
             uuid="tw-123",
@@ -496,7 +508,9 @@ class TestSyncEngine:
         assert sync_engine.stats.caldav_updated == 1
 
     @patch("twcaldav.sync_engine.caldav_to_taskwarrior")
-    def test_execute_update_caldav_to_tw(self, mock_convert, sync_engine, mock_tw):
+    def test_execute_update_caldav_to_tw(
+        self, mock_convert, sync_engine, mock_tw
+    ) -> None:
         """Test executing UPDATE from CalDAV to TaskWarrior."""
         tw_task = Task(
             uuid="tw-123",
@@ -535,7 +549,7 @@ class TestSyncEngine:
         mock_tw.import_tasks.assert_called_once()
         assert sync_engine.stats.tw_updated == 1
 
-    def test_execute_delete_tw_to_caldav(self, sync_engine, mock_caldav):
+    def test_execute_delete_tw_to_caldav(self, sync_engine, mock_caldav) -> None:
         """Test executing DELETE from TaskWarrior to CalDAV."""
         tw_task = Task(
             uuid="tw-123",
@@ -562,7 +576,7 @@ class TestSyncEngine:
         mock_caldav.delete_todo.assert_called_once_with("Work Tasks", "cd-123")
         assert sync_engine.stats.caldav_deleted == 1
 
-    def test_execute_delete_caldav_to_tw(self, sync_engine, mock_tw):
+    def test_execute_delete_caldav_to_tw(self, sync_engine, mock_tw) -> None:
         """Test executing DELETE from CalDAV to TaskWarrior."""
         tw_task = Task(
             uuid="tw-123",
@@ -588,7 +602,7 @@ class TestSyncEngine:
         mock_tw.delete_task.assert_called_once_with("tw-123")
         assert sync_engine.stats.tw_deleted == 1
 
-    def test_dry_run_no_changes(self, sample_config, mock_tw, mock_caldav):
+    def test_dry_run_no_changes(self, sample_config, mock_tw, mock_caldav) -> None:
         """Test that dry-run mode makes no actual changes."""
         engine = SyncEngine(sample_config, mock_tw, mock_caldav, dry_run=True)
 
@@ -614,7 +628,7 @@ class TestSyncEngine:
         # But stats should still be updated
         assert engine.stats.caldav_created == 1
 
-    def test_sync_integration(self, sync_engine, mock_tw, mock_caldav):
+    def test_sync_integration(self, sync_engine, mock_tw, mock_caldav) -> None:
         """Test full sync integration."""
         tw_task = Task(
             uuid="tw-123",
@@ -636,7 +650,7 @@ class TestSyncEngine:
             assert stats.caldav_created == 1
             assert stats.errors == 0
 
-    def test_sync_with_error(self, sync_engine, mock_tw, mock_caldav):
+    def test_sync_with_error(self, sync_engine, mock_tw, mock_caldav) -> None:
         """Test sync with error during discovery."""
         mock_tw.export_tasks.side_effect = RuntimeError("TaskWarrior error")
 

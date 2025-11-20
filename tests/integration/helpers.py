@@ -460,7 +460,7 @@ delete_tasks = {str(delete_tasks).lower()}
 # Cleanup operations
 
 
-def clear_taskwarrior(taskdata: str | None = None, project: str | None = None):
+def clear_taskwarrior(taskdata: str | None = None, project: str | None = None) -> None:
     """Clear all tasks from TaskWarrior test project.
 
     Args:
@@ -493,7 +493,7 @@ def clear_taskwarrior(taskdata: str | None = None, project: str | None = None):
     )
 
 
-def clear_caldav(calendar: caldav.Calendar):
+def clear_caldav(calendar: caldav.Calendar) -> None:
     """Clear all todos from CalDAV calendar.
 
     Args:

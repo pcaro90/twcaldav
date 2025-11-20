@@ -13,7 +13,7 @@ from twcaldav.taskwarrior import Task
 class TestTaskWarriorToCalDAV:
     """Tests for TaskWarrior to CalDAV conversion."""
 
-    def test_minimal_conversion(self):
+    def test_minimal_conversion(self) -> None:
         """Test converting minimal task."""
         task = Task(
             uuid="12345678-1234-1234-1234-123456789012",
@@ -30,7 +30,7 @@ class TestTaskWarriorToCalDAV:
         assert vtodo.summary == "Test task"
         assert vtodo.status == "NEEDS-ACTION"
 
-    def test_full_conversion(self):
+    def test_full_conversion(self) -> None:
         """Test converting complete task."""
         task = Task(
             uuid="12345678-1234-1234-1234-123456789012",
@@ -53,7 +53,7 @@ class TestTaskWarriorToCalDAV:
         # Project is not synced to categories - only tags are synced
         assert vtodo.categories == ["important", "urgent"]
 
-    def test_status_mapping(self):
+    def test_status_mapping(self) -> None:
         """Test status mapping."""
         # pending -> NEEDS-ACTION
         task = Task(
@@ -75,7 +75,7 @@ class TestTaskWarriorToCalDAV:
         vtodo = taskwarrior_to_caldav(task)
         assert vtodo.status == "CANCELLED"
 
-    def test_priority_mapping(self):
+    def test_priority_mapping(self) -> None:
         """Test priority mapping."""
         task = Task(
             uuid="test-uuid",
@@ -104,7 +104,7 @@ class TestTaskWarriorToCalDAV:
         vtodo = taskwarrior_to_caldav(task)
         assert vtodo.priority is None
 
-    def test_annotations_in_description(self):
+    def test_annotations_in_description(self) -> None:
         """Test annotations are formatted in description."""
         task = Task(
             uuid="test-uuid",
@@ -124,7 +124,7 @@ class TestTaskWarriorToCalDAV:
         assert "First note" in vtodo.description
         assert "Second note" in vtodo.description
 
-    def test_categories_from_tags_only(self):
+    def test_categories_from_tags_only(self) -> None:
         """Test categories include only tags (not project)."""
         task = Task(
             uuid="test-uuid",
@@ -144,7 +144,7 @@ class TestTaskWarriorToCalDAV:
 class TestCalDAVToTaskWarrior:
     """Tests for CalDAV to TaskWarrior conversion."""
 
-    def test_minimal_conversion(self):
+    def test_minimal_conversion(self) -> None:
         """Test converting minimal VTodo."""
         vtodo = VTodo(
             uid="caldav-uid-123",
@@ -158,7 +158,7 @@ class TestCalDAVToTaskWarrior:
         assert task.status == "pending"
         assert task.entry == datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC)
 
-    def test_full_conversion(self):
+    def test_full_conversion(self) -> None:
         """Test converting complete VTodo."""
         vtodo = VTodo(
             uid="caldav-uid-123",
@@ -183,7 +183,7 @@ class TestCalDAVToTaskWarrior:
         assert task.tags == ["work", "urgent"]
         assert task.priority == "H"
 
-    def test_status_mapping(self):
+    def test_status_mapping(self) -> None:
         """Test status mapping."""
         vtodo = VTodo(uid="test-uid", summary="Test", created=datetime.now(UTC))
 
@@ -207,7 +207,7 @@ class TestCalDAVToTaskWarrior:
         task = caldav_to_taskwarrior(vtodo)
         assert task.status == "pending"
 
-    def test_priority_mapping(self):
+    def test_priority_mapping(self) -> None:
         """Test priority mapping."""
         vtodo = VTodo(uid="test-uid", summary="Test", created=datetime.now(UTC))
 
@@ -235,7 +235,7 @@ class TestCalDAVToTaskWarrior:
         task = caldav_to_taskwarrior(vtodo)
         assert task.priority is None
 
-    def test_annotations_from_description(self):
+    def test_annotations_from_description(self) -> None:
         """Test parsing annotations from description."""
         vtodo = VTodo(
             uid="test-uid",
@@ -259,7 +259,7 @@ class TestCalDAVToTaskWarrior:
         assert task.annotations[1]["entry"] == "20241117T110000Z"
         assert task.annotations[1]["description"] == "Second note"
 
-    def test_preserve_existing_task_entry(self):
+    def test_preserve_existing_task_entry(self) -> None:
         """Test preserving entry timestamp from existing task."""
         original_entry = datetime(2024, 1, 1, 10, 0, 0, tzinfo=UTC)
         existing_task = Task(
@@ -280,7 +280,7 @@ class TestCalDAVToTaskWarrior:
         assert task.entry == original_entry
         assert task.uuid == "existing-uuid"
 
-    def test_categories_to_tags_only(self):
+    def test_categories_to_tags_only(self) -> None:
         """Test categories are mapped to tags only (not project)."""
         vtodo = VTodo(
             uid="test-uid",
@@ -295,7 +295,7 @@ class TestCalDAVToTaskWarrior:
         assert task.project is None
         assert task.tags == ["work", "urgent", "important"]
 
-    def test_round_trip_conversion(self):
+    def test_round_trip_conversion(self) -> None:
         """Test converting back and forth preserves data."""
         original_task = Task(
             uuid="12345678-1234-1234-1234-123456789012",
@@ -325,7 +325,7 @@ class TestCalDAVToTaskWarrior:
         assert converted_task.priority == original_task.priority
         assert converted_task.due == original_task.due
 
-    def test_annotation_deduplication(self):
+    def test_annotation_deduplication(self) -> None:
         """Test that annotations are deduplicated when merging."""
         # Create existing task with annotations
         existing_task = Task(
@@ -361,7 +361,7 @@ class TestCalDAVToTaskWarrior:
         assert task.annotations[1]["description"] == "Existing note 2"
         assert task.annotations[2]["description"] == "New note 3"
 
-    def test_annotation_with_pipe_in_description(self):
+    def test_annotation_with_pipe_in_description(self) -> None:
         """Test annotations with pipe character in description."""
         vtodo = VTodo(
             uid="test-uid",
@@ -380,7 +380,7 @@ class TestCalDAVToTaskWarrior:
         # Description should include the pipe after split on first pipe
         assert task.annotations[0]["description"] == "Check API | POST /users"
 
-    def test_malformed_annotation_skipped(self):
+    def test_malformed_annotation_skipped(self) -> None:
         """Test that malformed annotations are skipped with warning."""
         vtodo = VTodo(
             uid="test-uid",
@@ -403,7 +403,7 @@ class TestCalDAVToTaskWarrior:
         assert task.annotations[0]["description"] == "Valid note"
         assert task.annotations[1]["description"] == "Another valid note"
 
-    def test_user_description_with_annotations(self):
+    def test_user_description_with_annotations(self) -> None:
         """Test CalDAV description with user text and annotations."""
         vtodo = VTodo(
             uid="test-uid",

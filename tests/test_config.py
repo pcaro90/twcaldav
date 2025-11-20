@@ -12,7 +12,7 @@ from twcaldav.config import (
 )
 
 
-def test_config_from_dict_valid():
+def test_config_from_dict_valid() -> None:
     """Test parsing valid configuration dictionary."""
     data = {
         "caldav": {
@@ -46,7 +46,7 @@ def test_config_from_dict_valid():
     assert config.sync.delete_tasks is True
 
 
-def test_config_missing_caldav_section():
+def test_config_missing_caldav_section() -> None:
     """Test error when caldav section is missing."""
     data = {
         "mappings": [
@@ -61,7 +61,7 @@ def test_config_missing_caldav_section():
         Config.from_dict(data)
 
 
-def test_config_missing_caldav_url():
+def test_config_missing_caldav_url() -> None:
     """Test error when caldav URL is missing."""
     data = {
         "caldav": {
@@ -80,7 +80,7 @@ def test_config_missing_caldav_url():
         Config.from_dict(data)
 
 
-def test_config_missing_mappings_section():
+def test_config_missing_mappings_section() -> None:
     """Test error when mappings section is missing."""
     data = {
         "caldav": {
@@ -96,7 +96,7 @@ def test_config_missing_mappings_section():
         Config.from_dict(data)
 
 
-def test_config_empty_mappings():
+def test_config_empty_mappings() -> None:
     """Test error when mappings list is empty."""
     data = {
         "caldav": {
@@ -113,7 +113,7 @@ def test_config_empty_mappings():
         Config.from_dict(data)
 
 
-def test_config_missing_mapping_field():
+def test_config_missing_mapping_field() -> None:
     """Test error when mapping is missing required field."""
     data = {
         "caldav": {
@@ -133,7 +133,7 @@ def test_config_missing_mapping_field():
         Config.from_dict(data)
 
 
-def test_config_sync_defaults():
+def test_config_sync_defaults() -> None:
     """Test that sync config has proper defaults."""
     data = {
         "caldav": {
@@ -154,7 +154,7 @@ def test_config_sync_defaults():
     assert config.sync.delete_tasks is False
 
 
-def test_get_calendar_for_project():
+def test_get_calendar_for_project() -> None:
     """Test getting calendar for a project."""
     config = Config(
         caldav=CalDAVConfig(
@@ -180,7 +180,7 @@ def test_get_calendar_for_project():
     assert config.get_calendar_for_project("unknown") is None
 
 
-def test_get_project_for_calendar():
+def test_get_project_for_calendar() -> None:
     """Test getting project for a calendar."""
     config = Config(
         caldav=CalDAVConfig(
@@ -206,7 +206,7 @@ def test_get_project_for_calendar():
     assert config.get_project_for_calendar("Unknown") is None
 
 
-def test_get_mapped_projects():
+def test_get_mapped_projects() -> None:
     """Test getting all mapped projects."""
     config = Config(
         caldav=CalDAVConfig(
@@ -231,7 +231,7 @@ def test_get_mapped_projects():
     assert projects == ["work", "personal"]
 
 
-def test_get_mapped_calendars():
+def test_get_mapped_calendars() -> None:
     """Test getting all mapped calendars."""
     config = Config(
         caldav=CalDAVConfig(
@@ -256,7 +256,7 @@ def test_get_mapped_calendars():
     assert calendars == ["Work Calendar", "Personal"]
 
 
-def test_config_from_file_not_found():
+def test_config_from_file_not_found() -> None:
     """Test error when config file doesn't exist."""
     with pytest.raises(FileNotFoundError, match="Configuration file not found"):
         Config.from_file(Path("/nonexistent/path/config.toml"))

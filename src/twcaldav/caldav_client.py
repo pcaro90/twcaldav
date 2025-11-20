@@ -132,7 +132,7 @@ class CalDAVError(Exception):
 class CalDAVClient:
     """Interface to CalDAV server."""
 
-    def __init__(self, url: str, username: str, password: str):
+    def __init__(self, url: str, username: str, password: str) -> None:
         """Initialize CalDAV client.
 
         Args:

@@ -23,7 +23,7 @@ from tests.integration.helpers import (
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_create_simple(clean_test_environment):
+def test_tw_to_caldav_create_simple(clean_test_environment) -> None:
     """Create simple task in TaskWarrior, verify it syncs to CalDAV."""
     # Create task in TaskWarrior
     description = "Simple TaskWarrior test task"
@@ -48,7 +48,7 @@ def test_tw_to_caldav_create_simple(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_create_with_due_date(clean_test_environment):
+def test_tw_to_caldav_create_with_due_date(clean_test_environment) -> None:
     """Create task with due date in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with due date
     description = "TaskWarrior task with due date"
@@ -72,7 +72,7 @@ def test_tw_to_caldav_create_with_due_date(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_create_with_priority(clean_test_environment):
+def test_tw_to_caldav_create_with_priority(clean_test_environment) -> None:
     """Create task with priority in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with high priority
     description = "TaskWarrior task with high priority"
@@ -97,7 +97,7 @@ def test_tw_to_caldav_create_with_priority(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_create_with_tags(clean_test_environment):
+def test_tw_to_caldav_create_with_tags(clean_test_environment) -> None:
     """Create task with tags in TaskWarrior, verify they sync to CalDAV."""
     # Create task with tags
     description = "TaskWarrior task with tags"
@@ -121,7 +121,7 @@ def test_tw_to_caldav_create_with_tags(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_create_completed(clean_test_environment):
+def test_tw_to_caldav_create_completed(clean_test_environment) -> None:
     """Create and complete task in TaskWarrior, verify it syncs to CalDAV."""
     # Create and complete task
     description = "TaskWarrior completed task"
@@ -146,7 +146,7 @@ def test_tw_to_caldav_create_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_sync_preexisting_completed(clean_test_environment):
+def test_tw_to_caldav_sync_preexisting_completed(clean_test_environment) -> None:
     """Sync completed task that existed before first sync (no caldav_uid).
 
     This test verifies that completed tasks without caldav_uid are discovered
@@ -190,7 +190,7 @@ def test_tw_to_caldav_sync_preexisting_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_description(clean_test_environment):
+def test_tw_to_caldav_modify_description(clean_test_environment) -> None:
     """Modify task description in TaskWarrior, verify it syncs to CalDAV."""
     # Create and sync initial task
     description = "Original TaskWarrior description"
@@ -224,7 +224,7 @@ def test_tw_to_caldav_modify_description(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_due_date(clean_test_environment):
+def test_tw_to_caldav_modify_due_date(clean_test_environment) -> None:
     """Modify task due date in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with due date
     description = "TaskWarrior task with changeable due date"
@@ -254,7 +254,7 @@ def test_tw_to_caldav_modify_due_date(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_priority(clean_test_environment):
+def test_tw_to_caldav_modify_priority(clean_test_environment) -> None:
     """Modify task priority in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with medium priority
     description = "TaskWarrior task with changeable priority"
@@ -284,7 +284,7 @@ def test_tw_to_caldav_modify_priority(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_tags_add(clean_test_environment):
+def test_tw_to_caldav_modify_tags_add(clean_test_environment) -> None:
     """Add tags to task in TaskWarrior, verify they sync to CalDAV."""
     # Create task without tags
     description = "TaskWarrior task for adding tags"
@@ -312,7 +312,7 @@ def test_tw_to_caldav_modify_tags_add(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_tags_remove(clean_test_environment):
+def test_tw_to_caldav_modify_tags_remove(clean_test_environment) -> None:
     """Remove tags from task in TaskWarrior, verify they sync to CalDAV."""
     # Create task with tags
     description = "TaskWarrior task for removing tags"
@@ -340,7 +340,7 @@ def test_tw_to_caldav_modify_tags_remove(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_modify_status_to_completed(clean_test_environment):
+def test_tw_to_caldav_modify_status_to_completed(clean_test_environment) -> None:
     """Complete task in TaskWarrior, verify it syncs to CalDAV."""
     # Create pending task
     description = "TaskWarrior task to be completed"
@@ -367,7 +367,7 @@ def test_tw_to_caldav_modify_status_to_completed(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_delete(clean_test_environment):
+def test_tw_to_caldav_delete(clean_test_environment) -> None:
     """Delete task in TaskWarrior, verify it syncs to CalDAV."""
     # Create and sync task
     description = "TaskWarrior task to be deleted"
@@ -396,7 +396,7 @@ def test_tw_to_caldav_delete(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_annotation_create(clean_test_environment):
+def test_tw_to_caldav_annotation_create(clean_test_environment) -> None:
     """Add annotation to task in TaskWarrior, verify it syncs to CalDAV."""
     # Create task
     description = "TaskWarrior task with annotation"
@@ -425,7 +425,7 @@ def test_tw_to_caldav_annotation_create(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_annotation_add(clean_test_environment):
+def test_tw_to_caldav_annotation_add(clean_test_environment) -> None:
     """Add annotation to existing task in TaskWarrior, verify it syncs."""
     # Create task and sync
     description = "TaskWarrior task for adding annotation"
@@ -457,7 +457,7 @@ def test_tw_to_caldav_annotation_add(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_annotation_multiple(clean_test_environment):
+def test_tw_to_caldav_annotation_multiple(clean_test_environment) -> None:
     """Add multiple annotations to task in TaskWarrior, verify they sync."""
     # Create task with first annotation
     description = "TaskWarrior task with multiple annotations"
@@ -491,7 +491,7 @@ def test_tw_to_caldav_annotation_multiple(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_dry_run(clean_test_environment):
+def test_tw_to_caldav_dry_run(clean_test_environment) -> None:
     """Test dry-run mode doesn't modify CalDAV."""
     # Create task
     description = "TaskWarrior dry run test task"
@@ -516,7 +516,9 @@ def test_tw_to_caldav_dry_run(clean_test_environment):
 
 
 @pytest.mark.integration
-def test_tw_to_caldav_annotation_bidirectional_no_duplication(clean_test_environment):
+def test_tw_to_caldav_annotation_bidirectional_no_duplication(
+    clean_test_environment,
+) -> None:
     """Test that annotations don't duplicate on bidirectional sync."""
     # Create task with annotation
     description = "Task for annotation deduplication test"

@@ -77,7 +77,7 @@ class SyncEngine:
         tw: TaskWarrior,
         caldav_client: CalDAVClient,
         dry_run: bool = False,
-    ):
+    ) -> None:
         """Initialize sync engine.
 
         Args:

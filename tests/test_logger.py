@@ -5,7 +5,7 @@ import logging
 from twcaldav.logger import get_logger, setup_logger
 
 
-def test_setup_logger_default():
+def test_setup_logger_default() -> None:
     """Test logger setup with default settings."""
     logger = setup_logger(verbose=False)
 
@@ -14,7 +14,7 @@ def test_setup_logger_default():
     assert len(logger.handlers) == 1
 
 
-def test_setup_logger_verbose():
+def test_setup_logger_verbose() -> None:
     """Test logger setup with verbose mode."""
     logger = setup_logger(verbose=True)
 
@@ -23,7 +23,7 @@ def test_setup_logger_verbose():
     assert len(logger.handlers) == 1
 
 
-def test_get_logger():
+def test_get_logger() -> None:
     """Test getting the logger."""
     setup_logger(verbose=False)
     logger = get_logger()
@@ -32,7 +32,7 @@ def test_get_logger():
     assert isinstance(logger, logging.Logger)
 
 
-def test_logger_no_duplicate_handlers():
+def test_logger_no_duplicate_handlers() -> None:
     """Test that multiple setup calls don't create duplicate handlers."""
     logger1 = setup_logger(verbose=False)
     logger2 = setup_logger(verbose=True)

@@ -21,7 +21,7 @@ from tests.integration.helpers import (
 
 
 @pytest.mark.integration
-def test_multi_client_create_simple(clean_test_environment, multi_client_setup):
+def test_multi_client_create_simple(clean_test_environment, multi_client_setup) -> None:
     """Task created in client1 syncs to client2 via CalDAV."""
     client1, client2 = multi_client_setup
 
@@ -50,7 +50,9 @@ def test_multi_client_create_simple(clean_test_environment, multi_client_setup):
 
 
 @pytest.mark.integration
-def test_multi_client_create_with_due_date(clean_test_environment, multi_client_setup):
+def test_multi_client_create_with_due_date(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Task with due date created in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -71,7 +73,9 @@ def test_multi_client_create_with_due_date(clean_test_environment, multi_client_
 
 
 @pytest.mark.integration
-def test_multi_client_create_with_priority(clean_test_environment, multi_client_setup):
+def test_multi_client_create_with_priority(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Task with priority created in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -92,7 +96,9 @@ def test_multi_client_create_with_priority(clean_test_environment, multi_client_
 
 
 @pytest.mark.integration
-def test_multi_client_create_with_tags(clean_test_environment, multi_client_setup):
+def test_multi_client_create_with_tags(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Task with tags created in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -113,7 +119,9 @@ def test_multi_client_create_with_tags(clean_test_environment, multi_client_setu
 
 
 @pytest.mark.integration
-def test_multi_client_modify_description(clean_test_environment, multi_client_setup):
+def test_multi_client_modify_description(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Task modified in client2 syncs back to client1."""
     client1, client2 = multi_client_setup
 
@@ -149,7 +157,9 @@ def test_multi_client_modify_description(clean_test_environment, multi_client_se
 
 
 @pytest.mark.integration
-def test_multi_client_modify_due_date(clean_test_environment, multi_client_setup):
+def test_multi_client_modify_due_date(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Due date modified in client2 syncs back to client1."""
     client1, client2 = multi_client_setup
 
@@ -180,7 +190,9 @@ def test_multi_client_modify_due_date(clean_test_environment, multi_client_setup
 
 
 @pytest.mark.integration
-def test_multi_client_modify_priority(clean_test_environment, multi_client_setup):
+def test_multi_client_modify_priority(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Priority modified in client2 syncs back to client1."""
     client1, client2 = multi_client_setup
 
@@ -211,7 +223,9 @@ def test_multi_client_modify_priority(clean_test_environment, multi_client_setup
 
 
 @pytest.mark.integration
-def test_multi_client_modify_tags_add(clean_test_environment, multi_client_setup):
+def test_multi_client_modify_tags_add(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Tags added in client2 sync back to client1."""
     client1, client2 = multi_client_setup
 
@@ -241,7 +255,9 @@ def test_multi_client_modify_tags_add(clean_test_environment, multi_client_setup
 
 
 @pytest.mark.integration
-def test_multi_client_modify_tags_remove(clean_test_environment, multi_client_setup):
+def test_multi_client_modify_tags_remove(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Tags removed in client2 sync back to client1."""
     client1, client2 = multi_client_setup
 
@@ -273,7 +289,7 @@ def test_multi_client_modify_tags_remove(clean_test_environment, multi_client_se
 @pytest.mark.integration
 def test_multi_client_modify_status_to_completed(
     clean_test_environment, multi_client_setup
-):
+) -> None:
     """Task completed in client2 syncs back to client1."""
     client1, client2 = multi_client_setup
 
@@ -303,7 +319,7 @@ def test_multi_client_modify_status_to_completed(
 
 
 @pytest.mark.integration
-def test_multi_client_delete(clean_test_environment, multi_client_setup):
+def test_multi_client_delete(clean_test_environment, multi_client_setup) -> None:
     """Task deleted in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -332,7 +348,9 @@ def test_multi_client_delete(clean_test_environment, multi_client_setup):
 
 
 @pytest.mark.integration
-def test_multi_client_annotation_create(clean_test_environment, multi_client_setup):
+def test_multi_client_annotation_create(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Task created with annotation in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -358,7 +376,9 @@ def test_multi_client_annotation_create(clean_test_environment, multi_client_set
 
 
 @pytest.mark.integration
-def test_multi_client_annotation_add(clean_test_environment, multi_client_setup):
+def test_multi_client_annotation_add(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Annotation added in client2 syncs back to client1."""
     client1, client2 = multi_client_setup
 
@@ -395,7 +415,7 @@ def test_multi_client_annotation_add(clean_test_environment, multi_client_setup)
 @pytest.mark.integration
 def test_multi_client_annotation_bidirectional_no_duplication(
     clean_test_environment, multi_client_setup
-):
+) -> None:
     """Annotations don't duplicate during bidirectional sync."""
     client1, client2 = multi_client_setup
 
@@ -448,7 +468,9 @@ def test_multi_client_annotation_bidirectional_no_duplication(
 
 
 @pytest.mark.integration
-def test_multi_client_create_completed(clean_test_environment, multi_client_setup):
+def test_multi_client_create_completed(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Completed task created in client1 syncs to client2."""
     client1, client2 = multi_client_setup
 
@@ -470,7 +492,9 @@ def test_multi_client_create_completed(clean_test_environment, multi_client_setu
 
 
 @pytest.mark.integration
-def test_multi_client_annotation_multiple(clean_test_environment, multi_client_setup):
+def test_multi_client_annotation_multiple(
+    clean_test_environment, multi_client_setup
+) -> None:
     """Multiple annotations from client1 sync to client2."""
     client1, client2 = multi_client_setup
 
@@ -504,7 +528,7 @@ def test_multi_client_annotation_multiple(clean_test_environment, multi_client_s
 
 
 @pytest.mark.integration
-def test_multi_client_dry_run(clean_test_environment, multi_client_setup):
+def test_multi_client_dry_run(clean_test_environment, multi_client_setup) -> None:
     """Test dry-run mode doesn't sync between clients."""
     client1, client2 = multi_client_setup
 

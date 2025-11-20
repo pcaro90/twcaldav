@@ -134,12 +134,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     # Validate conflicting options for sync command
     if (
-        args.command == "sync"
-        and hasattr(args, "delete")
-        and hasattr(args, "no_delete")
+        (
+            args.command == "sync"
+            and hasattr(args, "delete")
+            and hasattr(args, "no_delete")
+        )
+        and args.delete
+        and args.no_delete
     ):
-        if args.delete and args.no_delete:
-            parser.error("--delete and --no-delete cannot be used together")
+        parser.error("--delete and --no-delete cannot be used together")
 
     return args
 
