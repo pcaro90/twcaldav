@@ -36,7 +36,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sync_parser = subparsers.add_parser(
         "sync",
         help="Synchronize TaskWarrior and CalDAV",
-        description="Perform bi-directional synchronization between TaskWarrior and CalDAV",
+        description=(
+            "Perform bi-directional synchronization between TaskWarrior and CalDAV"
+        ),
     )
     sync_parser.add_argument(
         "-v",

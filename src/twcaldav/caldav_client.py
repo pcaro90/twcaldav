@@ -3,10 +3,11 @@
 import contextlib
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 import caldav
+from caldav.objects import Calendar as CalDAVCalendar
 from icalendar import Calendar, Todo
+from icalendar.cal import Component as ICalComponent
 
 from twcaldav.logger import get_logger
 
@@ -26,7 +27,7 @@ class VTodo:
     last_modified: datetime | None = None
 
     @classmethod
-    def from_icalendar(cls, todo: Any) -> "VTodo":
+    def from_icalendar(cls, todo: ICalComponent) -> "VTodo":
         """Create VTodo from icalendar Todo component.
 
         Args:
@@ -178,7 +179,7 @@ class CalDAVClient:
         except Exception as e:
             raise CalDAVError(f"Failed to list calendars: {e}") from e
 
-    def get_calendar(self, calendar_id: str) -> Any:
+    def get_calendar(self, calendar_id: str) -> CalDAVCalendar:
         """Get calendar by ID.
 
         Args:
