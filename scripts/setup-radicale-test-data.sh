@@ -23,13 +23,13 @@ RETRY=0
 while [ $RETRY -lt $MAX_RETRIES ]; do
   RETRY=$((RETRY + 1))
   echo "  Attempt $RETRY/$MAX_RETRIES..."
-  
+
   # Try to connect to base URL with auth
   if curl -sf -u "$USERNAME:$PASSWORD" "$BASE_URL" > /dev/null 2>&1; then
     echo "✓ Radicale is ready!"
     break
   fi
-  
+
   # Show more details on last attempt
   if [ $RETRY -eq $MAX_RETRIES ]; then
     echo "ERROR: Radicale not ready after $MAX_RETRIES attempts"
@@ -40,7 +40,7 @@ while [ $RETRY -lt $MAX_RETRIES ]; do
     curl -v "$BASE_URL" 2>&1 || true
     exit 1
   fi
-  
+
   sleep 2
 done
 
