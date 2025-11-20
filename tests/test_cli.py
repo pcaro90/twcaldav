@@ -1,11 +1,14 @@
 """Tests for CLI module."""
 
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from twcaldav.cli import main, parse_args
+from twcaldav.config import ProjectCalendarMapping
+from twcaldav.taskwarrior import Task
 
 
 def test_parse_args_defaults():
@@ -22,10 +25,10 @@ def test_parse_args_defaults():
 
 def test_parse_args_verbose():
     """Test verbose flag."""
-    args = parse_args(["-v", "sync"])
+    args = parse_args(["sync", "-v"])
     assert args.verbose is True
 
-    args = parse_args(["--verbose", "sync"])
+    args = parse_args(["sync", "--verbose"])
     assert args.verbose is True
 
 
@@ -40,10 +43,10 @@ def test_parse_args_dry_run():
 
 def test_parse_args_config():
     """Test config path argument."""
-    args = parse_args(["-c", "/path/to/config.toml", "sync"])
+    args = parse_args(["sync", "-c", "/path/to/config.toml"])
     assert args.config == Path("/path/to/config.toml")
 
-    args = parse_args(["--config", "/another/path.toml", "sync"])
+    args = parse_args(["sync", "--config", "/another/path.toml"])
     assert args.config == Path("/another/path.toml")
 
 
@@ -67,7 +70,7 @@ def test_parse_args_conflicting_delete_flags():
 
 def test_parse_args_combined():
     """Test combining multiple arguments."""
-    args = parse_args(["-v", "-c", "/my/config.toml", "sync", "-n", "--delete"])
+    args = parse_args(["sync", "-v", "-c", "/my/config.toml", "-n", "--delete"])
 
     assert args.command == "sync"
     assert args.verbose is True
@@ -131,7 +134,7 @@ caldav_calendar = "Work Tasks"
     mock_sync_cls.return_value = mock_sync
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Verify
     assert result == 0
@@ -190,7 +193,7 @@ caldav_calendar = "Work Tasks"
     mock_sync_cls.return_value = mock_sync
 
     # Run with dry-run
-    result = main(["-c", str(config_file), "sync", "--dry-run"])
+    result = main(["sync", "-c", str(config_file), "--dry-run"])
 
     # Verify dry_run flag was passed
     assert result == 0
@@ -209,7 +212,7 @@ def test_main_config_not_found(mock_config_cls, tmp_path):
     config_file = tmp_path / "nonexistent.toml"
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -250,7 +253,7 @@ caldav_calendar = "Work Tasks"
     mock_tw_cls.return_value = mock_tw
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -268,7 +271,7 @@ def test_main_config_invalid(mock_config_cls, tmp_path):
     config_file.write_text("invalid toml")
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -315,7 +318,7 @@ caldav_calendar = "Work Tasks"
     mock_sync_cls.return_value = mock_sync
 
     # Run with --delete flag
-    result = main(["-c", str(config_file), "sync", "--delete"])
+    result = main(["sync", "-c", str(config_file), "--delete"])
 
     # Config should be updated to enable deletion
     assert result == 0
@@ -362,7 +365,7 @@ caldav_calendar = "Work Tasks"
     mock_sync_cls.return_value = mock_sync
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -397,7 +400,7 @@ caldav_calendar = "Work Tasks"
     mock_tw_cls.side_effect = Exception("TaskWarrior not found")
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -441,7 +444,7 @@ caldav_calendar = "Work Tasks"
     mock_sync_cls.return_value = mock_sync
 
     # Run main
-    result = main(["-c", str(config_file), "sync"])
+    result = main(["sync", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1
@@ -473,15 +476,28 @@ def test_parse_args_test_caldav_subcommand():
     assert args.command == "test-caldav"
 
 
-def test_parse_args_backward_compatibility():
-    """Test backward compatibility when no subcommand is provided."""
-    # Should default to 'sync' command when no subcommand specified
-    # -v is global, but -n is sync-specific, so we can't test them together
-    args = parse_args(["-v"])
+def test_parse_args_no_subcommand_shows_help():
+    """Test that no subcommand shows help and exits."""
+    # Should print help and exit when no subcommand specified
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args([])
+    assert exc_info.value.code == 0  # Exit code 0 for help
+
+
+def test_parse_args_verbose_after_subcommand():
+    """Test that -v works after subcommand."""
+    args = parse_args(["sync", "-v"])
     assert args.command == "sync"
     assert args.verbose is True
-    # dry_run should have default value
-    assert args.dry_run is False
+
+    args = parse_args(["test-caldav", "-v"])
+    assert args.command == "test-caldav"
+    assert args.verbose is True
+
+    args = parse_args(["unlink", "-v", "--yes"])
+    assert args.command == "unlink"
+    assert args.verbose is True
+    assert args.yes is True
 
 
 @patch("twcaldav.taskwarrior.TaskWarrior")
@@ -507,23 +523,27 @@ caldav_calendar = "Work Tasks"
     mock_tw = MagicMock()
     mock_tw.validate_uda.return_value = True
     mock_tw.export_tasks.return_value = [
-        {
-            "uuid": "uuid1",
-            "description": "Task 1",
-            "project": "work",
-            "caldav_uid": "uid1",
-        },
-        {
-            "uuid": "uuid2",
-            "description": "Task 2",
-            "project": "work",
-            "caldav_uid": "uid2",
-        },
+        Task(
+            uuid="uuid1",
+            description="Task 1",
+            status="pending",
+            entry=datetime.now(),
+            project="work",
+            caldav_uid="uid1",
+        ),
+        Task(
+            uuid="uuid2",
+            description="Task 2",
+            status="pending",
+            entry=datetime.now(),
+            project="work",
+            caldav_uid="uid2",
+        ),
     ]
     mock_tw_cls.return_value = mock_tw
 
     # Run unlink with --yes flag
-    result = main(["-c", str(config_file), "unlink", "--yes"])
+    result = main(["unlink", "-c", str(config_file), "--yes"])
 
     # Verify
     assert result == 0
@@ -556,7 +576,7 @@ caldav_calendar = "Work Tasks"
     mock_tw_cls.return_value = mock_tw
 
     # Run unlink with project filter
-    result = main(["-c", str(config_file), "unlink", "--project", "work", "--yes"])
+    result = main(["unlink", "-c", str(config_file), "--project", "work", "--yes"])
 
     # Verify filter was applied
     assert result == 0
@@ -585,17 +605,19 @@ caldav_calendar = "Work Tasks"
     mock_tw = MagicMock()
     mock_tw.validate_uda.return_value = True
     mock_tw.export_tasks.return_value = [
-        {
-            "uuid": "uuid1",
-            "description": "Task 1",
-            "project": "work",
-            "caldav_uid": "uid1",
-        },
+        Task(
+            uuid="uuid1",
+            description="Task 1",
+            status="pending",
+            entry=datetime.now(),
+            project="work",
+            caldav_uid="uid1",
+        ),
     ]
     mock_tw_cls.return_value = mock_tw
 
     # Run unlink in dry-run mode
-    result = main(["-c", str(config_file), "unlink", "-n"])
+    result = main(["unlink", "-c", str(config_file), "-n"])
 
     # Verify no modifications were made
     assert result == 0
@@ -622,7 +644,9 @@ caldav_calendar = "Work Tasks"
     mock_config.caldav.url = "https://example.com/caldav"
     mock_config.caldav.username = "user"
     mock_config.caldav.password = "pass"
-    mock_config.mappings = {"work": "Work Tasks"}
+    mock_config.mappings = [
+        ProjectCalendarMapping(taskwarrior_project="work", caldav_calendar="Work Tasks")
+    ]
     mock_config_cls.from_file.return_value = mock_config
 
     # Mock CalDAV client
@@ -634,7 +658,7 @@ caldav_calendar = "Work Tasks"
     mock_caldav_cls.return_value = mock_caldav
 
     # Run test-caldav
-    result = main(["-c", str(config_file), "test-caldav"])
+    result = main(["test-caldav", "-c", str(config_file)])
 
     # Verify
     assert result == 0
@@ -672,7 +696,7 @@ caldav_calendar = "Work Tasks"
     mock_caldav_cls.side_effect = Exception("Connection failed")
 
     # Run test-caldav
-    result = main(["-c", str(config_file), "test-caldav"])
+    result = main(["test-caldav", "-c", str(config_file)])
 
     # Should return error code
     assert result == 1

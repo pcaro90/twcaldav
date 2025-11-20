@@ -444,7 +444,7 @@ delete_tasks = {str(delete_tasks).lower()}
 """
     config_path.write_text(config_content)
 
-    args = ["uv", "run", "twcaldav", "--config", str(config_path)]
+    args = ["uv", "run", "twcaldav", "sync", "--config", str(config_path)]
     if dry_run:
         args.append("--dry-run")
 

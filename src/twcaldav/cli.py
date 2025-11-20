@@ -16,26 +16,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """
     from . import __version__
 
+    # Main parser
     parser = argparse.ArgumentParser(
         prog="twcaldav",
         description="Bi-directional sync between TaskWarrior and CalDAV",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-
-    # Global options
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Enable verbose output (DEBUG level)",
-    )
-
-    parser.add_argument(
-        "-c",
-        "--config",
-        type=Path,
-        metavar="PATH",
-        help="Path to configuration file (default: ~/.config/twcaldav/config.toml)",
     )
 
     parser.add_argument(
@@ -51,7 +36,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sync_parser = subparsers.add_parser(
         "sync",
         help="Synchronize TaskWarrior and CalDAV",
-        description="Perform bi-directional synchronization TaskWarrior <-> CalDAV",
+        description="Perform bi-directional synchronization between TaskWarrior and CalDAV",
+    )
+    sync_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (DEBUG level)",
+    )
+    sync_parser.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        metavar="PATH",
+        help="Path to configuration file (default: ~/.config/twcaldav/config.toml)",
     )
     sync_parser.add_argument(
         "-n",
@@ -77,6 +75,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Remove the caldav_uid field from TaskWarrior tasks",
     )
     unlink_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (DEBUG level)",
+    )
+    unlink_parser.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        metavar="PATH",
+        help="Path to configuration file (default: ~/.config/twcaldav/config.toml)",
+    )
+    unlink_parser.add_argument(
         "--project",
         type=str,
         metavar="PROJECT",
@@ -95,34 +106,40 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     # Test-caldav subcommand
-    subparsers.add_parser(
+    test_parser = subparsers.add_parser(
         "test-caldav",
         help="Test CalDAV server connection",
         description="Test connection to CalDAV server and list available calendars",
     )
+    test_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (DEBUG level)",
+    )
+    test_parser.add_argument(
+        "-c",
+        "--config",
+        type=Path,
+        metavar="PATH",
+        help="Path to configuration file (default: ~/.config/twcaldav/config.toml)",
+    )
 
     args = parser.parse_args(argv)
 
-    # Backward compatibility: if no subcommand specified, default to 'sync'
+    # If no subcommand specified, show help and exit
     if args.command is None:
-        # Show deprecation notice only if there are other arguments (not just --version)
-        if argv is None:
-            argv = sys.argv[1:]
-        if argv and not any(arg in argv for arg in ["--version", "-h", "--help"]):
-            print(
-                "Warning: Running 'twcaldav' without a subcommand is deprecated. "
-                "Use 'twcaldav sync' instead.",
-                file=sys.stderr,
-            )
-        args.command = "sync"
-        # Set default values for sync options
-        args.dry_run = False
-        args.delete = False
-        args.no_delete = False
+        parser.print_help()
+        sys.exit(0)
 
     # Validate conflicting options for sync command
-    if args.command == "sync" and args.delete and args.no_delete:
-        parser.error("--delete and --no-delete cannot be used together")
+    if (
+        args.command == "sync"
+        and hasattr(args, "delete")
+        and hasattr(args, "no_delete")
+    ):
+        if args.delete and args.no_delete:
+            parser.error("--delete and --no-delete cannot be used together")
 
     return args
 
@@ -307,9 +324,9 @@ def cmd_unlink(args: argparse.Namespace) -> int:
 
         # Show tasks
         for task in tasks:
-            project = task.get("project", "(no project)")
-            description = task.get("description", "(no description)")
-            caldav_uid = task.get("caldav_uid", "")
+            project = task.project or "(no project)"
+            description = task.description or "(no description)"
+            caldav_uid = task.caldav_uid or ""
             print(f"  - [{project}] {description} (caldav_uid: {caldav_uid[:20]}...)")
 
         # Confirm unless --yes flag is provided
@@ -323,7 +340,7 @@ def cmd_unlink(args: argparse.Namespace) -> int:
         # Remove caldav_uid from each task
         if not args.dry_run:
             for task in tasks:
-                task_id = task["uuid"]
+                task_id = task.uuid
                 logger.debug(f"Removing caldav_uid from task {task_id}")
                 tw.modify_task(task_id, {"caldav_uid": ""})
             logger.info(f"Successfully unlinked {len(tasks)} task(s)")
@@ -389,14 +406,13 @@ def cmd_test_caldav(args: argparse.Namespace) -> int:
 
         if calendars:
             print(f"Found {len(calendars)} calendar(s):")
-            for cal_name, cal_url in calendars.items():
+            for cal_name in calendars:
                 print(f"  - {cal_name}")
-                print(f"    URL: {cal_url}")
                 # Check if calendar is mapped in config
                 mapped_project = None
-                for project, calendar in config.mappings.items():
-                    if calendar == cal_name:
-                        mapped_project = project
+                for mapping in config.mappings:
+                    if mapping.caldav_calendar == cal_name:
+                        mapped_project = mapping.taskwarrior_project
                         break
                 if mapped_project:
                     print(f"    Mapped to project: {mapped_project}")
@@ -407,8 +423,8 @@ def cmd_test_caldav(args: argparse.Namespace) -> int:
 
         # Show configured mappings
         print("Configured project → calendar mappings:")
-        for project, calendar in config.mappings.items():
-            print(f"  {project} → {calendar}")
+        for mapping in config.mappings:
+            print(f"  {mapping.taskwarrior_project} → {mapping.caldav_calendar}")
         print()
 
         logger.info("CalDAV connection test completed successfully")
