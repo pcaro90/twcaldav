@@ -51,7 +51,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     sync_parser = subparsers.add_parser(
         "sync",
         help="Synchronize TaskWarrior and CalDAV",
-        description="Perform bi-directional synchronization between TaskWarrior and CalDAV",
+        description="Perform bi-directional synchronization TaskWarrior <-> CalDAV",
     )
     sync_parser.add_argument(
         "-n",
@@ -95,7 +95,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     # Test-caldav subcommand
-    test_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "test-caldav",
         help="Test CalDAV server connection",
         description="Test connection to CalDAV server and list available calendars",
@@ -263,7 +263,7 @@ def cmd_unlink(args: argparse.Namespace) -> int:
 
     # Load configuration (for validation only)
     try:
-        config = Config.from_file(args.config)
+        Config.from_file(args.config)
         logger.debug(f"Loaded configuration from {args.config or 'default location'}")
     except FileNotFoundError as e:
         logger.error(str(e))
@@ -434,17 +434,16 @@ def main(argv: list[str] | None = None) -> int:
     # Route to appropriate command handler
     if args.command == "sync":
         return cmd_sync(args)
-    elif args.command == "unlink":
+    if args.command == "unlink":
         return cmd_unlink(args)
-    elif args.command == "test-caldav":
+    if args.command == "test-caldav":
         return cmd_test_caldav(args)
-    else:
-        # This shouldn't happen due to parse_args default, but handle it just in case
-        print(
-            "Error: No command specified. Use 'twcaldav sync' or see 'twcaldav --help'",
-            file=sys.stderr,
-        )
-        return 1
+    # This shouldn't happen due to parse_args default, but handle it just in case
+    print(
+        "Error: No command specified. Use 'twcaldav sync' or see 'twcaldav --help'",
+        file=sys.stderr,
+    )
+    return 1
 
 
 if __name__ == "__main__":
