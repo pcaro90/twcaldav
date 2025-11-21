@@ -15,6 +15,7 @@ wheels/
 htmlcov/
 coverage.xml
 *.log
+test-results.xml
 
 # Docker volumes
 .docker-volumes/
