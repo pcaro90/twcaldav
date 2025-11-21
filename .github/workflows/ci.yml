@@ -1,10 +1,14 @@
 name: CI
 
+permissions:
+  checks: write
+  contents: read
+
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
 
 jobs:
   lint:
@@ -50,7 +54,9 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run unit tests
-        run: uv run pytest tests/ -v --ignore=tests/integration --cov=src/twcaldav --cov-report=xml --cov-report=term --junit-xml=unit-test-results.xml
+        run:
+          uv run pytest tests/ -v --ignore=tests/integration --cov=src/twcaldav
+          --cov-report=xml --cov-report=term --junit-xml=unit-test-results.xml
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
