@@ -1,71 +1,171 @@
 # twcaldav
 
+[![CI](https://github.com/pcaro90/twcaldav/actions/workflows/ci.yml/badge.svg)](https://github.com/pcaro90/twcaldav/actions/workflows/ci.yml)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 Bidirectional synchronization between TaskWarrior and CalDAV servers.
+
+> [!WARNING]
+>
+> This project was completely coded by an AI agent. A human was involved to
+> describe the project, to make implementation and behaviour decisions, to
+> define what tests should be performed, detected and pointed mistakes, and a
+> few other things. However, as of now, human did **NOT** write or correct a
+> single line of code directly. What a time to be alive.
+>
+> Also, this program may destroy your data (not because it was made by robots).
+> Always use `--dry-run` before sync'ing anything important.
 
 ## Features
 
-- Two-way sync between TaskWarrior tasks and CalDAV todos
-- Project-to-calendar mapping
-- Support for priorities, due dates, tags, and annotations
-- Dry-run mode for testing
-- Conflict resolution based on modification times
+- 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔
+  CalDAV).
+- **No sync database** - CalDAV UID is stored as a TaskWarrior
+  [UDA](https://taskwarrior.org/docs/udas/), so there is no need for an
+  intermediate sync database.
+- 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple
+  computers. The CalDAV server is agnostic to the sync, so it works well with
+  other clients. Also, multiple TaskWarrior instances can sync against the same
+  CalDAV server.
+- 🎯 **Project Mapping** - One TaskWarrior project is mapped to one CalDAV
+  calendar.
+- 🔍 **LWW Sync** - Timestamp-based conflict resolution. Last Write Wins.
+- 🧪 **Dry Run Mode** - Preview changes before syncing.
+- ✅ **Comprehensive Tests** - Several unit tests, plus integration tests
+  performed in Docker, to replicate actual usage.
 
 ## Installation
 
-```bash
-pip install twcaldav
-```
-
-## Configuration
-
-Create a `config.toml` file:
-
-```toml
-[caldav]
-url = "https://example.com/caldav"
-username = "your-username"
-password = "your-password"
-
-[[mappings]]
-taskwarrior_project = "work"
-caldav_calendar = "Work Tasks"
-
-[sync]
-delete_tasks = false
-```
-
-## Usage
+### Using uv (Recommended)
 
 ```bash
-# Sync tasks and todos
-twcaldav sync -c config.toml
+# Clone the repository
+git clone https://github.com/pcaro90/twcaldav.git
+cd twcaldav
 
+# Run the tool
+uv run twcaldav
+```
+
+## Quick Start
+
+### 1. Configure TaskWarrior UDA
+
+**IMPORTANT**: Before first sync, configure TaskWarrior to recognize the CalDAV
+UID as a User Defined Attribute:
+
+```bash
+task config uda.caldav_uid.type string
+task config uda.caldav_uid.label "CalDAV UID"
+```
+
+This allows twcaldav to store the CalDAV task identifier in your TaskWarrior
+database, enabling proper synchronization across multiple devices.
+
+### 2. Create Configuration File
+
+Create `~/.config/twcaldav/config.toml`, using `config.toml.example` as a
+starting point. All options should be clear enough.
+
+### 3. Run Sync
+
+```bash
 # Test CalDAV connection
-twcaldav test-caldav -c config.toml
+uv run twcaldav test-caldav
 
-# Unlink tasks from CalDAV
-twcaldav unlink -c config.toml
+# Dry run sync (preview changes)
+uv run twcaldav sync --dry-run --verbose
 
-# Use verbose mode
-twcaldav sync -v -c config.toml
-
-# Dry run (no changes)
-twcaldav sync -n -c config.toml
+# Sync everything
+uv run twcaldav sync --verbose
 ```
 
-## Development
+### 4. Create an Automated Sync (Cron Job)
+
+To sync automatically every hour:
 
 ```bash
-# Install dependencies
-uv sync
+# Edit crontab
+crontab -e
 
-# Run tests
-uv run pytest tests/
+# Add this line (adjust path to uv and project):
+0 * * * * cd /path/to/twcaldav && /path/to/uv run twcaldav sync >> /var/log/twcaldav.log 2>&1
+```
 
-# Run integration tests
+Or use a systemd timer for more control:
+
+```ini
+# ~/.config/systemd/user/twcaldav.service
+[Unit]
+Description=TaskWarrior CalDAV Sync
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/uv run --directory /path/to/twcaldav twcaldav sync
+
+# ~/.config/systemd/user/twcaldav.timer
+[Unit]
+Description=Run TaskWarrior CalDAV Sync hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable with:
+
+```bash
+systemctl --user enable --now twcaldav.timer
+```
+
+## Field Mapping
+
+| TaskWarrior      | CalDAV                                             |
+| ---------------- | -------------------------------------------------- |
+| description      | SUMMARY                                            |
+| status           | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
+| due              | DUE                                                |
+| priority         | PRIORITY (H→1, M→5, L→9)                           |
+| project          | CATEGORIES                                         |
+| tags             | CATEGORIES                                         |
+| annotations      | DESCRIPTION                                        |
+| caldav_uid (UDA) | UID (unique identifier)                            |
+
+## Testing
+
+The project has comprehensive test coverage, both as unit tests, and end-to-end
+integration tests with a real CalDAV + TaskWarrior environment.
+
+```bash
+# Run unit tests
+uv run pytest -v
+
+# Run integration tests (requires Docker)
 ./scripts/run-integration-tests.sh
 ```
 
+See [TESTING_QUICKSTART.md](TESTING_QUICKSTART.md) for more details.
+
+## CI/CD
+
+The project uses GitHub Actions for automated testing:
+
+- **Lint**: Code quality checks with Ruff
+- **Unit Tests**: Fast, mocked tests
+- **Integration Tests**: Full end-to-end tests with Docker
+
+Every push and pull request triggers the full test suite.
+
 ## License
 
-MIT
+MIT License - see LICENSE file for details
+
+## Credits
+
+- Built with [caldav](https://github.com/python-caldav/caldav) library
+- Uses [TaskWarrior](https://taskwarrior.org/) CLI
+- Tested with [Radicale](https://radicale.org/) CalDAV server
