@@ -153,7 +153,7 @@ class SyncClassifier:
                 reason="Both deleted",
             )
 
-        # Hybrid approach: Check content first, then use timestamps for conflict resolution
+        # Check content first, then use timestamps for conflict resolution
         # Step 1: Compare actual content (not timestamps)
         content_equal = self.comparator.tasks_content_equal(tw_task, caldav_todo)
 
@@ -206,7 +206,7 @@ class SyncClassifier:
                 caldav_todo=caldav_todo,
                 action=SyncAction.UPDATE,
                 direction=SyncDirection.TW_TO_CALDAV,
-                reason="Content differs, TaskWarrior more recent (CalDAV has no timestamp)",
+                reason="Content differs, TaskWarrior more recent (CD has no timestamp)",
             )
 
         # Both have timestamps - compare (Last Write Wins)
