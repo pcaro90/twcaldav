@@ -72,6 +72,30 @@ def test_tw_to_caldav_create_with_due_date(clean_test_environment) -> None:
 
 
 @pytest.mark.integration
+def test_tw_to_caldav_create_with_scheduled(clean_test_environment) -> None:
+    """Create task with scheduled date in TaskWarrior, verify it syncs to CalDAV."""
+    # Create task with scheduled date
+    description = "TaskWarrior task with scheduled date"
+    task = create_task(description, scheduled="tomorrow")
+    assert task is not None
+    assert "scheduled" in task
+
+    # Run sync
+    assert run_sync()
+
+    # Verify todo has DTSTART in CalDAV
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    dtstart = get_todo_property(todo, "dtstart")
+    assert dtstart is not None
+
+
+@pytest.mark.integration
 def test_tw_to_caldav_create_with_priority(clean_test_environment) -> None:
     """Create task with priority in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with high priority

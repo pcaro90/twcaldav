@@ -54,6 +54,20 @@ class TaskComparator:
             self.logger.debug(f"Content differs: due - TW:{tw_due} vs CD:{cd_due}")
             return False
 
+        # Compare scheduled/dtstart (handle None and timezone differences)
+        tw_scheduled = (
+            tw_task.scheduled.replace(tzinfo=None) if tw_task.scheduled else None
+        )
+        cd_dtstart = (
+            caldav_todo.dtstart.replace(tzinfo=None) if caldav_todo.dtstart else None
+        )
+        if tw_scheduled != cd_dtstart:
+            self.logger.debug(
+                f"Content differs: scheduled/dtstart - "
+                f"TW:{tw_scheduled} vs CD:{cd_dtstart}"
+            )
+            return False
+
         # Compare priority
         priority_map = {"H": 1, "M": 5, "L": 9}
         expected_caldav_priority = (

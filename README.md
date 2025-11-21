@@ -138,6 +138,7 @@ systemctl --user enable --now twcaldav.timer
 | description      | SUMMARY                                            |
 | status           | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
 | due              | DUE                                                |
+| scheduled        | DTSTART (start date/time)                          |
 | priority         | PRIORITY (H→1, M→5, L→9)                           |
 | project          | CATEGORIES                                         |
 | tags             | CATEGORIES                                         |
@@ -184,7 +185,7 @@ Similar projects you might want to consider:
 Future improvements planned:
 
 - [ ] Task dependency synchronization
-- [ ] Task scheduled/start time mapping
+- [x] Task scheduled/start time mapping
 
 ## License
 

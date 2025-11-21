@@ -21,6 +21,7 @@ class VTodo:
     status: str | None = None
     description: str | None = None
     due: datetime | None = None
+    dtstart: datetime | None = None
     priority: int | None = None
     categories: list[str] | None = None
     created: datetime | None = None
@@ -55,6 +56,18 @@ class VTodo:
                 from datetime import time
 
                 due = datetime.combine(due, time())
+
+        dtstart = todo.get("DTSTART")
+        if dtstart and hasattr(dtstart, "dt"):
+            dtstart = dtstart.dt
+            # Convert to datetime if it's a date
+            if isinstance(dtstart, datetime):
+                pass  # Already a datetime
+            else:
+                # It's a date, convert to datetime
+                from datetime import time
+
+                dtstart = datetime.combine(dtstart, time())
 
         created = todo.get("CREATED")
         if created and hasattr(created, "dt"):
@@ -92,6 +105,7 @@ class VTodo:
             status=status,
             description=description,
             due=due,
+            dtstart=dtstart,
             priority=priority,
             categories=categories,
             created=created,
@@ -114,6 +128,8 @@ class VTodo:
             todo.add("DESCRIPTION", self.description)
         if self.due:
             todo.add("DUE", self.due)
+        if self.dtstart:
+            todo.add("DTSTART", self.dtstart)
         if self.priority is not None:
             todo.add("PRIORITY", self.priority)
         if self.categories:

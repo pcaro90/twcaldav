@@ -140,6 +140,34 @@ class TestTaskWarriorToCalDAV:
         # Project is not synced to categories - only tags
         assert vtodo.categories == ["urgent", "important"]
 
+    def test_scheduled_to_dtstart(self) -> None:
+        """Test scheduled field is mapped to DTSTART."""
+        task = Task(
+            uuid="test-uuid",
+            description="Task with scheduled date",
+            status="pending",
+            entry=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
+            scheduled=datetime(2024, 11, 20, 9, 0, 0, tzinfo=UTC),
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.dtstart == datetime(2024, 11, 20, 9, 0, 0, tzinfo=UTC)
+
+    def test_scheduled_none_maps_to_no_dtstart(self) -> None:
+        """Test None scheduled does not set DTSTART."""
+        task = Task(
+            uuid="test-uuid",
+            description="Task without scheduled",
+            status="pending",
+            entry=datetime.now(UTC),
+            scheduled=None,
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.dtstart is None
+
 
 class TestCalDAVToTaskWarrior:
     """Tests for CalDAV to TaskWarrior conversion."""
@@ -295,6 +323,32 @@ class TestCalDAVToTaskWarrior:
         assert task.project is None
         assert task.tags == ["work", "urgent", "important"]
 
+    def test_dtstart_to_scheduled(self) -> None:
+        """Test DTSTART is mapped to scheduled field."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Task with start date",
+            created=datetime.now(UTC),
+            dtstart=datetime(2024, 11, 20, 9, 0, 0, tzinfo=UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.scheduled == datetime(2024, 11, 20, 9, 0, 0, tzinfo=UTC)
+
+    def test_dtstart_none_maps_to_no_scheduled(self) -> None:
+        """Test None DTSTART does not set scheduled."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Task without start date",
+            created=datetime.now(UTC),
+            dtstart=None,
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.scheduled is None
+
     def test_round_trip_conversion(self) -> None:
         """Test converting back and forth preserves data."""
         original_task = Task(
@@ -305,6 +359,7 @@ class TestCalDAVToTaskWarrior:
             project="work",
             priority="H",
             due=datetime(2024, 11, 20, 12, 0, 0, tzinfo=UTC),
+            scheduled=datetime(2024, 11, 19, 9, 0, 0, tzinfo=UTC),
             tags=["important"],
         )
 
@@ -324,6 +379,7 @@ class TestCalDAVToTaskWarrior:
         assert converted_task.tags == original_task.tags
         assert converted_task.priority == original_task.priority
         assert converted_task.due == original_task.due
+        assert converted_task.scheduled == original_task.scheduled
 
     def test_annotation_deduplication(self) -> None:
         """Test that annotations are deduplicated when merging."""

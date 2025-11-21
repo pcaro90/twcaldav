@@ -64,6 +64,30 @@ def test_caldav_to_tw_create_with_due_date(clean_test_environment) -> None:
 
 
 @pytest.mark.integration
+def test_caldav_to_tw_create_with_dtstart(clean_test_environment) -> None:
+    """Create todo with DTSTART in CalDAV, verify it syncs to TaskWarrior."""
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create todo with start date
+    summary = "CalDAV todo with start date"
+    start_date = datetime.now(UTC) + timedelta(days=2)
+    assert create_todo(calendar, summary, dtstart=start_date)
+
+    # Run sync
+    assert run_sync()
+
+    # Verify task has correct scheduled date
+    tasks = get_tasks()
+    assert len(tasks) == 1
+    assert tasks[0]["description"] == summary
+    assert "scheduled" in tasks[0]
+
+
+@pytest.mark.integration
 def test_caldav_to_tw_create_with_priority(clean_test_environment) -> None:
     """Create todo with priority in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client
