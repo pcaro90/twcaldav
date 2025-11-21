@@ -15,23 +15,23 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 > to be alive.
 >
 > Also, this program may destroy your data (not because it was made by robots).
-> Always use `--dry-run` before sync'ing anything important.
+> Always use `--dry-run` before syncing anything important.
 
 ## Features
 
 - 🔄 **Bidirectional Sync** - Changes propagate both ways (TaskWarrior ↔
   CalDAV).
-- **No sync database** - CalDAV UID is stored as a TaskWarrior
+- 💾 **No Sync Database** - CalDAV UID is stored as a TaskWarrior
   [UDA](https://taskwarrior.org/docs/udas/), so there is no need for an
   intermediate sync database.
 - 🖥️ **Multi-Client Support** - Multiple TaskWarrior instances can sync against
   the same CalDAV server.
-- 🎯 **Project Mapping** - One TaskWarrior project is mapped to one CalDAV
-  calendar.
-- 🔍 **LWW Sync** - Timestamp-based conflict resolution. Last Write Wins.
+- 🎯 **Project Mapping** - One TaskWarrior project maps to one CalDAV calendar.
+- 🔍 **LWW Conflict Resolution** - Timestamp-based conflict resolution. Last
+  Write Wins.
 - 🧪 **Dry Run Mode** - Preview changes before syncing.
-- ✅ **Comprehensive Tests** - Several unit tests, plus integration tests
-  performed in Docker, to replicate actual usage.
+- ✅ **Comprehensive Tests** - Extensive unit tests, plus integration tests
+  performed in Docker to replicate actual usage.
 
 ## Installation
 
@@ -73,7 +73,7 @@ database, enabling proper synchronization across multiple devices.
 ### 2. Create Configuration File
 
 Create `~/.config/twcaldav/config.toml`, using `config.toml.example` as a
-starting point. All options should be clear enough.
+starting point. All options are documented in the example file.
 
 ### 3. Run Sync
 
@@ -81,14 +81,14 @@ starting point. All options should be clear enough.
 # Test CalDAV connection
 twcaldav test-caldav
 
-# Dry run sync (preview changes)
+# Preview changes without applying them
 twcaldav sync --dry-run --verbose
 
-# Sync everything
+# Perform actual synchronization
 twcaldav sync --verbose
 ```
 
-### 4. Create an Automated Sync (Cron Job)
+### 4. Set Up Automated Sync (Optional)
 
 To sync automatically every hour:
 
@@ -96,11 +96,11 @@ To sync automatically every hour:
 # Edit crontab
 crontab -e
 
-# Add this line (adjust path depending on the install method):
+# Add this line (adjust path based on your installation method):
 0 * * * * /path/to/twcaldav sync >> /var/log/twcaldav.log 2>&1
 ```
 
-Or use a systemd timer:
+Alternatively, use a systemd timer:
 
 ```ini
 # ~/.config/systemd/user/twcaldav.service
@@ -144,8 +144,9 @@ systemctl --user enable --now twcaldav.timer
 
 ## Testing
 
-The project has comprehensive test coverage, both as unit tests, and end-to-end
-integration tests with a real CalDAV + TaskWarrior environment (Docker-based).
+The project has comprehensive test coverage, including both unit tests and
+end-to-end integration tests with a real CalDAV + TaskWarrior environment
+(Docker-based).
 
 ```bash
 # Run unit tests
