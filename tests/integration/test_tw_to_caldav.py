@@ -13,6 +13,7 @@ from tests.integration.helpers import (
     find_todo_by_summary,
     get_caldav_client,
     get_calendar,
+    get_task,
     get_tasks,
     get_todo_property,
     get_todos,
@@ -117,6 +118,39 @@ def test_tw_to_caldav_create_with_wait(clean_test_environment) -> None:
     assert todo is not None
     wait_prop = get_todo_property(todo, "x-taskwarrior-wait")
     assert wait_prop is not None
+
+
+@pytest.mark.integration
+def test_tw_to_caldav_completed_task_with_end(clean_test_environment) -> None:
+    """Complete task in TaskWarrior, verify COMPLETED timestamp syncs to CalDAV."""
+    # Create and complete task
+    description = "Task to be completed"
+    task = create_task(description)
+    assert task is not None
+
+    # Complete the task (this sets end timestamp automatically)
+    assert complete_task(task["uuid"])
+
+    # Verify task has end timestamp
+    completed_task = get_task(task["uuid"])
+    assert completed_task is not None
+    assert completed_task["status"] == "completed"
+    assert "end" in completed_task
+
+    # Run sync
+    assert run_sync()
+
+    # Verify todo has COMPLETED in CalDAV
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    completed_prop = get_todo_property(todo, "completed")
+    assert completed_prop is not None
+    assert get_todo_property(todo, "status") == "COMPLETED"
 
 
 @pytest.mark.integration

@@ -137,6 +137,7 @@ systemctl --user enable --now twcaldav.timer
 | ---------------- | -------------------------------------------------- |
 | description      | SUMMARY                                            |
 | status           | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
+| end              | COMPLETED (completion timestamp)                   |
 | due              | DUE                                                |
 | scheduled        | DTSTART (start date/time)                          |
 | wait             | X-TASKWARRIOR-WAIT (custom property)               |

@@ -75,6 +75,21 @@ class TaskComparator:
             self.logger.debug(f"Content differs: wait - TW:{tw_wait} vs CD:{cd_wait}")
             return False
 
+        # Compare end/completed timestamp (handle None and timezone differences)
+        # Only compare if both tasks are completed status
+        if tw_task.status == "completed" and caldav_todo.status == "COMPLETED":
+            tw_end = tw_task.end.replace(tzinfo=None) if tw_task.end else None
+            cd_completed = (
+                caldav_todo.completed.replace(tzinfo=None)
+                if caldav_todo.completed
+                else None
+            )
+            if tw_end != cd_completed:
+                self.logger.debug(
+                    f"Content differs: end/completed - TW:{tw_end} vs CD:{cd_completed}"
+                )
+                return False
+
         # Compare priority
         priority_map = {"H": 1, "M": 5, "L": 9}
         expected_caldav_priority = (

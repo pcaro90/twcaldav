@@ -23,6 +23,7 @@ class Task:
     due: datetime | None = None
     scheduled: datetime | None = None
     wait: datetime | None = None
+    end: datetime | None = None
     priority: str | None = None
     tags: list[str] | None = None
     annotations: list[dict[str, Any]] | None = None
@@ -52,6 +53,9 @@ class Task:
         wait = None
         if "wait" in data:
             wait = datetime.fromisoformat(data["wait"])
+        end = None
+        if "end" in data:
+            end = datetime.fromisoformat(data["end"])
 
         return cls(
             uuid=data["uuid"],
@@ -63,6 +67,7 @@ class Task:
             due=due,
             scheduled=scheduled,
             wait=wait,
+            end=end,
             priority=data.get("priority"),
             tags=data.get("tags"),
             annotations=data.get("annotations"),
@@ -92,6 +97,8 @@ class Task:
             data["scheduled"] = self.scheduled.strftime("%Y%m%dT%H%M%SZ")
         if self.wait:
             data["wait"] = self.wait.strftime("%Y%m%dT%H%M%SZ")
+        if self.end:
+            data["end"] = self.end.strftime("%Y%m%dT%H%M%SZ")
         if self.priority:
             data["priority"] = self.priority
         if self.tags:

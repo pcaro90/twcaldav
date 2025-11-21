@@ -12,6 +12,7 @@ from tests.integration.helpers import (
     delete_task,
     get_caldav_client,
     get_calendar,
+    get_task,
     get_tasks,
     get_todos,
     modify_task,
@@ -403,6 +404,49 @@ def test_multi_client_delete(clean_test_environment, multi_client_setup) -> None
     # Verify task deleted in Client 2
     client2_tasks = get_tasks(taskdata=client2)
     assert len(client2_tasks) == 0
+
+
+@pytest.mark.integration
+def test_multi_client_completion_timestamp_sync(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Task completed in client2 with timestamp syncs back to client1."""
+    client1, client2 = multi_client_setup
+
+    # Client 1: Create task and sync
+    description = "Task with completion timestamp"
+    task1 = create_task(description, taskdata=client1)
+    assert task1 is not None
+
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Wait for timestamp separation
+    time.sleep(2)
+
+    # Client 2: Complete task (sets end timestamp)
+    client2_tasks = get_tasks(taskdata=client2)
+    assert len(client2_tasks) == 1
+    assert complete_task(client2_tasks[0]["uuid"], taskdata=client2)
+
+    # Verify completion timestamp is set in client2
+    completed = get_task(client2_tasks[0]["uuid"], taskdata=client2)
+    assert completed is not None
+    assert completed["status"] == "completed"
+    assert "end" in completed
+    end_timestamp = completed["end"]
+
+    # Sync back
+    assert run_sync(taskdata=client2)
+    assert run_sync(taskdata=client1)
+
+    # Verify completion timestamp in Client 1
+    client1_completed = get_task(task1["uuid"], taskdata=client1)
+    assert client1_completed is not None
+    assert client1_completed["status"] == "completed"
+    assert "end" in client1_completed
+    # Timestamps should match (within a second for rounding)
+    assert client1_completed["end"] == end_timestamp
 
 
 @pytest.mark.integration

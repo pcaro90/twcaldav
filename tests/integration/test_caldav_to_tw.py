@@ -112,6 +112,34 @@ def test_caldav_to_tw_create_with_wait(clean_test_environment) -> None:
 
 
 @pytest.mark.integration
+def test_caldav_to_tw_completed_with_timestamp(clean_test_environment) -> None:
+    """Create completed todo with COMPLETED timestamp, verify it syncs to TW."""
+    from datetime import UTC, datetime
+
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create completed todo with COMPLETED timestamp
+    summary = "CalDAV completed task"
+    completed_time = datetime.now(UTC)
+    assert create_todo(calendar, summary, status="COMPLETED", completed=completed_time)
+
+    # Run sync
+    assert run_sync()
+
+    # Verify task has end timestamp
+    # Query for completed tasks explicitly (completed tasks not in pending list)
+    completed_tasks = get_tasks(status="completed")
+    assert len(completed_tasks) == 1
+    assert completed_tasks[0]["description"] == summary
+    assert completed_tasks[0]["status"] == "completed"
+    assert "end" in completed_tasks[0]
+
+
+@pytest.mark.integration
 def test_caldav_to_tw_create_with_priority(clean_test_environment) -> None:
     """Create todo with priority in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client

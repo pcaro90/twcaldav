@@ -79,6 +79,25 @@ def get_tasks(
     return json.loads(stdout)
 
 
+def get_task(uuid: str, taskdata: str | None = None) -> dict | None:
+    """Get a single task by UUID (any status).
+
+    Args:
+        uuid: Task UUID.
+        taskdata: Optional TASKDATA path to use.
+
+    Returns:
+        Task dictionary or None if not found.
+    """
+    args = [f"{uuid}", "export"]
+    stdout, _, code = run_task_command(args, taskdata=taskdata)
+    if code != 0 or not stdout.strip():
+        return None
+
+    tasks = json.loads(stdout)
+    return tasks[0] if tasks else None
+
+
 def create_task(description: str, taskdata: str | None = None, **kwargs) -> dict | None:
     """Create a task in TaskWarrior.
 
@@ -312,6 +331,8 @@ def create_todo(calendar: caldav.Calendar, summary: str, **kwargs) -> bool:
             todo.add("dtstart", kwargs["dtstart"])
         if "wait" in kwargs:
             todo.add("X-TASKWARRIOR-WAIT", kwargs["wait"])
+        if "completed" in kwargs:
+            todo.add("completed", kwargs["completed"])
         if "priority" in kwargs:
             todo.add("priority", kwargs["priority"])
         if "description" in kwargs:

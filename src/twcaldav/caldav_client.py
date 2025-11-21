@@ -23,6 +23,7 @@ class VTodo:
     due: datetime | None = None
     dtstart: datetime | None = None
     wait: datetime | None = None
+    completed: datetime | None = None
     priority: int | None = None
     categories: list[str] | None = None
     created: datetime | None = None
@@ -102,6 +103,30 @@ class VTodo:
                 # Unknown type, skip
                 wait = None
 
+        # Parse completed field (COMPLETED property)
+        completed = todo.get("COMPLETED")
+        if completed:
+            if hasattr(completed, "dt"):
+                # Property has a dt attribute (date/datetime)
+                completed = completed.dt
+                # Convert to datetime if it's a date
+                if not isinstance(completed, datetime):
+                    from datetime import time
+
+                    completed = datetime.combine(completed, time())
+            elif isinstance(completed, str):
+                # Property is a string, parse it
+                try:
+                    completed_str = str(completed)
+                    if completed_str.endswith("Z"):
+                        completed_str = completed_str[:-1] + "+00:00"
+                    completed = datetime.fromisoformat(completed_str)
+                except (ValueError, AttributeError):
+                    completed = None
+            else:
+                # Unknown type, skip
+                completed = None
+
         # Parse priority (CalDAV uses 1-9, where 1 is highest)
         priority = None
         if todo.get("PRIORITY"):
@@ -132,6 +157,7 @@ class VTodo:
             due=due,
             dtstart=dtstart,
             wait=wait,
+            completed=completed,
             priority=priority,
             categories=categories,
             created=created,
@@ -158,6 +184,8 @@ class VTodo:
             todo.add("DTSTART", self.dtstart)
         if self.wait:
             todo.add("X-TASKWARRIOR-WAIT", self.wait)
+        if self.completed:
+            todo.add("COMPLETED", self.completed)
         if self.priority is not None:
             todo.add("PRIORITY", self.priority)
         if self.categories:

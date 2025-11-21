@@ -196,6 +196,36 @@ class TestTaskWarriorToCalDAV:
 
         assert vtodo.wait is None
 
+    def test_end_to_completed(self) -> None:
+        """Test end field is mapped to COMPLETED timestamp."""
+        task = Task(
+            uuid="test-uuid",
+            description="Completed task",
+            status="completed",
+            entry=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
+            end=datetime(2024, 11, 21, 15, 30, 0, tzinfo=UTC),
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.completed == datetime(2024, 11, 21, 15, 30, 0, tzinfo=UTC)
+        assert vtodo.status == "COMPLETED"
+
+    def test_end_none_maps_to_no_completed(self) -> None:
+        """Test None end does not set COMPLETED timestamp."""
+        task = Task(
+            uuid="test-uuid",
+            description="Pending task",
+            status="pending",
+            entry=datetime.now(UTC),
+            end=None,
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.completed is None
+        assert vtodo.status == "NEEDS-ACTION"
+
 
 class TestCalDAVToTaskWarrior:
     """Tests for CalDAV to TaskWarrior conversion."""
@@ -402,6 +432,36 @@ class TestCalDAVToTaskWarrior:
         task = caldav_to_taskwarrior(vtodo)
 
         assert task.wait is None
+
+    def test_completed_to_end(self) -> None:
+        """Test COMPLETED timestamp is mapped to end field."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Completed task",
+            status="COMPLETED",
+            created=datetime.now(UTC),
+            completed=datetime(2024, 11, 21, 15, 30, 0, tzinfo=UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.end == datetime(2024, 11, 21, 15, 30, 0, tzinfo=UTC)
+        assert task.status == "completed"
+
+    def test_completed_none_maps_to_no_end(self) -> None:
+        """Test None COMPLETED does not set end field."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Pending task",
+            status="NEEDS-ACTION",
+            created=datetime.now(UTC),
+            completed=None,
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.end is None
+        assert task.status == "pending"
 
     def test_round_trip_conversion(self) -> None:
         """Test converting back and forth preserves data."""
