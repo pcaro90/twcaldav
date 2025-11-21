@@ -43,7 +43,7 @@ services:
         curl -LsSf https://astral.sh/uv/install.sh | sh &&
         export PATH=\"/root/.local/bin:\$PATH\" &&
         echo '=== Installing dependencies ===' &&
-        uv sync --all-extras &&
+        uv sync --all-extras >/dev/null &&
         echo '=== Initializing TaskWarrior ===' &&
         mkdir -p /tmp/taskwarrior-test &&
         task rc.data.location=/tmp/taskwarrior-test rc.confirmation=off version &&
