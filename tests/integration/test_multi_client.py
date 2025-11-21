@@ -548,3 +548,92 @@ def test_multi_client_dry_run(clean_test_environment, multi_client_setup) -> Non
     assert run_sync(taskdata=client2)
     client2_tasks_after = len(get_tasks(taskdata=client2))
     assert client2_tasks_after == 0
+
+
+@pytest.mark.integration
+def test_multi_client_no_spurious_updates(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Test that syncing unchanged tasks doesn't trigger spurious updates.
+
+    This verifies that after a task is synced between clients, subsequent
+    syncs don't detect false changes that would cause unnecessary updates.
+    """
+    client1, client2 = multi_client_setup
+
+    # Client 1: Create a task
+    description = "Multi-client no spurious updates test"
+    task1 = create_task(description, taskdata=client1)
+    assert task1 is not None
+
+    # Wait 3 seconds after task creation
+    time.sleep(3)
+
+    # Sync to CalDAV
+    assert run_sync(taskdata=client1)
+
+    # Wait 3 seconds after syncing to CalDAV
+    time.sleep(3)
+
+    # Sync to Client 2
+    assert run_sync(taskdata=client2)
+
+    # Verify task appears in Client 2
+    client2_tasks = get_tasks(taskdata=client2)
+    assert len(client2_tasks) == 1
+    assert description in client2_tasks[0]["description"]
+
+    # Get initial state for comparison
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+    initial_todos = get_todos(calendar)
+    assert len(initial_todos) == 1
+    initial_todo_data = initial_todos[0].data
+
+    # Verify task still exists in both clients before testing for spurious updates
+    client1_tasks_before = get_tasks(taskdata=client1)
+    assert len(client1_tasks_before) == 1, "Task missing from Client 1"
+    assert description in client1_tasks_before[0]["description"]
+
+    client2_tasks_before = get_tasks(taskdata=client2)
+    assert len(client2_tasks_before) == 1, "Task missing from Client 2"
+    assert description in client2_tasks_before[0]["description"]
+
+    # Wait 3 seconds before re-syncing to ensure timestamp separation
+    time.sleep(3)
+
+    # Sync against Client 1 - should NOT trigger updates
+    assert run_sync(taskdata=client1)
+
+    # Verify CalDAV todo was not modified
+    updated_todos = get_todos(calendar)
+    assert len(updated_todos) == 1
+    assert updated_todos[0].data == initial_todo_data, (
+        "CalDAV todo was modified after Client 1 sync"
+    )
+
+    # Verify Client 1 tasks unchanged
+    client1_tasks_after = get_tasks(taskdata=client1)
+    assert len(client1_tasks_after) == 1
+    assert client1_tasks_after[0]["modified"] == client1_tasks_before[0]["modified"], (
+        "Client 1 task was modified"
+    )
+
+    # Sync against Client 2 - should NOT trigger further updates
+    assert run_sync(taskdata=client2)
+
+    # Verify CalDAV todo still not modified
+    final_todos = get_todos(calendar)
+    assert len(final_todos) == 1
+    assert final_todos[0].data == initial_todo_data, (
+        "CalDAV todo was modified after Client 2 sync"
+    )
+
+    # Verify Client 2 tasks unchanged
+    client2_tasks_after = get_tasks(taskdata=client2)
+    assert len(client2_tasks_after) == 1
+    assert client2_tasks_after[0]["modified"] == client2_tasks_before[0]["modified"], (
+        "Client 2 task was modified"
+    )
