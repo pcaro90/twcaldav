@@ -206,7 +206,7 @@ class TestSyncEngine:
     def test_discover_and_correlate_matched(
         self, sync_engine, mock_tw, mock_caldav
     ) -> None:
-        """Test discovery with matched tasks (equal timestamps)."""
+        """Test discovery with matched tasks (different content triggers update)."""
         now = datetime.now()
         tw_task = Task(
             uuid="tw-123",
@@ -233,8 +233,9 @@ class TestSyncEngine:
         assert len(pairs) == 1
         assert pairs[0].tw_task == tw_task
         assert pairs[0].caldav_todo == caldav_todo
-        assert pairs[0].action == SyncAction.SKIP
-        assert "timestamps equal" in pairs[0].reason.lower()
+        # Content differs (description != summary), so should update
+        assert pairs[0].action == SyncAction.UPDATE
+        assert pairs[0].direction == SyncDirection.CALDAV_TO_TW
 
     def test_classify_both_missing(self, sync_engine) -> None:
         """Test classification when both tasks are missing."""
@@ -361,7 +362,7 @@ class TestSyncEngine:
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
     def test_classify_caldav_more_recent(self, sync_engine) -> None:
-        """Test classification when CalDAV is more recent."""
+        """Test classification when CalDAV is more recent but content identical."""
         now = datetime.now()
         tw_task = Task(
             uuid="tw-123",
@@ -377,11 +378,12 @@ class TestSyncEngine:
             last_modified=now,
         )
         pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
-        assert pair.action == SyncAction.UPDATE
-        assert pair.direction == SyncDirection.CALDAV_TO_TW
+        # Content is identical, so skip despite timestamp difference
+        assert pair.action == SyncAction.SKIP
+        assert "content identical" in pair.reason.lower()
 
     def test_classify_caldav_no_timestamp(self, sync_engine) -> None:
-        """Test classification when CalDAV lacks timestamp."""
+        """Test classification when CalDAV lacks timestamp but content identical."""
         tw_task = Task(
             uuid="tw-123",
             description="Test",
@@ -397,9 +399,31 @@ class TestSyncEngine:
             created=None,
         )
         pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
-        # TW has entry timestamp, CalDAV has none - update CalDAV
+        # Content is identical, so skip despite missing timestamps
+        assert pair.action == SyncAction.SKIP
+        assert "content identical" in pair.reason.lower()
+
+    def test_classify_content_differs_lww(self, sync_engine) -> None:
+        """Test classification when content differs - uses Last Write Wins."""
+        now = datetime.now()
+        tw_task = Task(
+            uuid="tw-123",
+            description="Old description",
+            status="pending",
+            entry=now - timedelta(hours=2),
+            modified=now - timedelta(hours=1),
+        )
+        caldav_todo = VTodo(
+            uid="cd-123",
+            summary="New description",
+            status="NEEDS-ACTION",
+            last_modified=now,
+        )
+        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        # Content differs, CalDAV more recent - update TW from CalDAV
         assert pair.action == SyncAction.UPDATE
-        assert pair.direction == SyncDirection.TW_TO_CALDAV
+        assert pair.direction == SyncDirection.CALDAV_TO_TW
+        assert "caldav more recent" in pair.reason.lower()
 
     def test_execute_sync_action_skip(self, sync_engine) -> None:
         """Test executing a SKIP action."""

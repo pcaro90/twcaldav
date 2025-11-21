@@ -207,10 +207,99 @@ class SyncEngine:
 
         return task_pairs
 
+    def _tasks_content_equal(self, tw_task: Task, caldav_todo: VTodo) -> bool:
+        """Compare task content (not timestamps) to detect real changes.
+
+        Args:
+            tw_task: TaskWarrior task.
+            caldav_todo: CalDAV todo.
+
+        Returns:
+            True if content is identical, False if any field differs.
+        """
+        # Compare description/summary
+        if tw_task.description != caldav_todo.summary:
+            self.logger.debug(
+                f"Content differs: description/summary - "
+                f"TW:'{tw_task.description}' vs CD:'{caldav_todo.summary}'"
+            )
+            return False
+
+        # Compare status
+        status_map = {
+            "pending": "NEEDS-ACTION",
+            "completed": "COMPLETED",
+            "deleted": "CANCELLED",
+            "waiting": "NEEDS-ACTION",
+            "recurring": "NEEDS-ACTION",
+        }
+        expected_caldav_status = status_map.get(tw_task.status, "NEEDS-ACTION")
+        actual_caldav_status = caldav_todo.status or "NEEDS-ACTION"
+        if expected_caldav_status != actual_caldav_status:
+            self.logger.debug(
+                f"Content differs: status - "
+                f"TW:'{tw_task.status}' ({expected_caldav_status}) vs "
+                f"CD:{actual_caldav_status}"
+            )
+            return False
+
+        # Compare due date (handle None and timezone differences)
+        tw_due = tw_task.due.replace(tzinfo=None) if tw_task.due else None
+        cd_due = caldav_todo.due.replace(tzinfo=None) if caldav_todo.due else None
+        if tw_due != cd_due:
+            self.logger.debug(f"Content differs: due - TW:{tw_due} vs CD:{cd_due}")
+            return False
+
+        # Compare priority
+        priority_map = {"H": 1, "M": 5, "L": 9}
+        expected_caldav_priority = (
+            priority_map.get(tw_task.priority) if tw_task.priority else None
+        )
+        if expected_caldav_priority != caldav_todo.priority:
+            self.logger.debug(
+                f"Content differs: priority - "
+                f"TW:{tw_task.priority} ({expected_caldav_priority}) vs "
+                f"CD:{caldav_todo.priority}"
+            )
+            return False
+
+        # Compare tags/categories
+        tw_tags = set(tw_task.tags or [])
+        cd_categories = set(caldav_todo.categories or [])
+        if tw_tags != cd_categories:
+            self.logger.debug(
+                f"Content differs: tags/categories - TW:{tw_tags} vs CD:{cd_categories}"
+            )
+            return False
+
+        # Compare annotations (stored in CalDAV description)
+        from twcaldav.field_mapper import _format_description_with_annotations
+
+        expected_caldav_description = _format_description_with_annotations(tw_task)
+        actual_caldav_description = caldav_todo.description
+
+        # Normalize None vs empty string
+        expected_desc = expected_caldav_description or ""
+        actual_desc = actual_caldav_description or ""
+
+        if expected_desc != actual_desc:
+            self.logger.debug(
+                f"Content differs: annotations/description - "
+                f"TW has {len(expected_desc)} chars vs CD has {len(actual_desc)} chars"
+            )
+            return False
+
+        return True
+
     def _classify_task_pair(
         self, tw_task: Task | None, caldav_todo: VTodo | None
     ) -> TaskPair:
         """Classify a task pair and determine sync action.
+
+        Uses hybrid approach:
+        1. First checks if content differs (fields comparison)
+        2. If content is identical, skip update (no spurious updates)
+        3. If content differs, use Last Write Wins (timestamp) for conflict resolution
 
         Args:
             tw_task: TaskWarrior task (or None if not exists).
@@ -333,18 +422,37 @@ class SyncEngine:
                 reason="Both deleted",
             )
 
-        # Check for modifications
-        tw_modified = tw_task.modified or tw_task.entry
-        caldav_modified = caldav_todo.last_modified or caldav_todo.created
+        # Hybrid approach: Check content first, then use timestamps for conflict resolution
+        # Step 1: Compare actual content (not timestamps)
+        content_equal = self._tasks_content_equal(tw_task, caldav_todo)
 
-        if tw_modified is None and caldav_modified is None:
-            # No timestamps - skip
+        if content_equal:
+            # Content is identical - no update needed regardless of timestamps
+            # This prevents spurious updates due to TW's import behavior
             return TaskPair(
                 tw_task=tw_task,
                 caldav_todo=caldav_todo,
                 action=SyncAction.SKIP,
                 direction=None,
-                reason="No modification timestamps",
+                reason="No changes (content identical)",
+            )
+
+        # Step 2: Content differs - use Last Write Wins for conflict resolution
+        self.logger.debug(
+            f"Content differs between TW:{tw_task.uuid} and CD:{caldav_todo.uid}"
+        )
+
+        tw_modified = tw_task.modified or tw_task.entry
+        caldav_modified = caldav_todo.last_modified or caldav_todo.created
+
+        if tw_modified is None and caldav_modified is None:
+            # No timestamps but content differs - prefer TaskWarrior
+            return TaskPair(
+                tw_task=tw_task,
+                caldav_todo=caldav_todo,
+                action=SyncAction.UPDATE,
+                direction=SyncDirection.TW_TO_CALDAV,
+                reason="Content differs, no timestamps (preferring TW)",
             )
 
         if tw_modified is None:
@@ -354,7 +462,7 @@ class SyncEngine:
                 caldav_todo=caldav_todo,
                 action=SyncAction.UPDATE,
                 direction=SyncDirection.CALDAV_TO_TW,
-                reason="CalDAV more recent (TW has no timestamp)",
+                reason="Content differs, CalDAV more recent (TW has no timestamp)",
             )
 
         if caldav_modified is None:
@@ -364,10 +472,10 @@ class SyncEngine:
                 caldav_todo=caldav_todo,
                 action=SyncAction.UPDATE,
                 direction=SyncDirection.TW_TO_CALDAV,
-                reason="TaskWarrior more recent (CalDAV has no timestamp)",
+                reason="Content differs, TaskWarrior more recent (CalDAV has no timestamp)",
             )
 
-        # Both have timestamps - compare
+        # Both have timestamps - compare (Last Write Wins)
         # Make timezone-naive for comparison
         tw_timestamp = (
             tw_modified.replace(tzinfo=None) if tw_modified.tzinfo else tw_modified
@@ -378,25 +486,13 @@ class SyncEngine:
             else caldav_modified
         )
 
-        # Allow small time difference (1 second) to avoid ping-pong
-        time_diff = abs((tw_timestamp - caldav_timestamp).total_seconds())
-
         # Log timestamp comparisons for debugging
-        if time_diff > 1:
-            self.logger.debug(
-                f"Timestamp comparison - TW:{tw_timestamp.isoformat()} "
-                f"CD:{caldav_timestamp.isoformat()} "
-                f"diff:{time_diff}s"
-            )
-
-        if time_diff <= 1:
-            return TaskPair(
-                tw_task=tw_task,
-                caldav_todo=caldav_todo,
-                action=SyncAction.SKIP,
-                direction=None,
-                reason="No changes (timestamps equal)",
-            )
+        time_diff = abs((tw_timestamp - caldav_timestamp).total_seconds())
+        self.logger.debug(
+            f"Timestamp comparison - TW:{tw_timestamp.isoformat()} "
+            f"CD:{caldav_timestamp.isoformat()} "
+            f"diff:{time_diff}s"
+        )
 
         if tw_timestamp > caldav_timestamp:
             return TaskPair(
@@ -404,14 +500,14 @@ class SyncEngine:
                 caldav_todo=caldav_todo,
                 action=SyncAction.UPDATE,
                 direction=SyncDirection.TW_TO_CALDAV,
-                reason="TaskWarrior more recent",
+                reason="Content differs, TaskWarrior more recent",
             )
         return TaskPair(
             tw_task=tw_task,
             caldav_todo=caldav_todo,
             action=SyncAction.UPDATE,
             direction=SyncDirection.CALDAV_TO_TW,
-            reason="CalDAV more recent",
+            reason="Content differs, CalDAV more recent",
         )
 
     def _execute_sync_action(self, pair: TaskPair) -> None:
