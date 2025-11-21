@@ -239,7 +239,7 @@ class TestSyncEngine:
 
     def test_classify_both_missing(self, sync_engine) -> None:
         """Test classification when both tasks are missing."""
-        pair = sync_engine._classify_task_pair(None, None)
+        pair = sync_engine.classifier.classify(None, None)
         assert pair.action == SyncAction.SKIP
         assert "missing" in pair.reason.lower()
 
@@ -251,7 +251,7 @@ class TestSyncEngine:
             status="pending",
             entry=datetime.now(),
         )
-        pair = sync_engine._classify_task_pair(tw_task, None)
+        pair = sync_engine.classifier.classify(tw_task, None)
         assert pair.action == SyncAction.CREATE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
@@ -263,21 +263,21 @@ class TestSyncEngine:
             status="deleted",
             entry=datetime.now(),
         )
-        pair = sync_engine._classify_task_pair(tw_task, None)
+        pair = sync_engine.classifier.classify(tw_task, None)
         assert pair.action == SyncAction.SKIP
         assert "deleted" in pair.reason.lower()
 
     def test_classify_caldav_only_active(self, sync_engine) -> None:
         """Test classification with active CalDAV todo only."""
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
-        pair = sync_engine._classify_task_pair(None, caldav_todo)
+        pair = sync_engine.classifier.classify(None, caldav_todo)
         assert pair.action == SyncAction.CREATE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
 
     def test_classify_caldav_only_cancelled(self, sync_engine) -> None:
         """Test classification with cancelled CalDAV todo only."""
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="CANCELLED")
-        pair = sync_engine._classify_task_pair(None, caldav_todo)
+        pair = sync_engine.classifier.classify(None, caldav_todo)
         assert pair.action == SyncAction.SKIP
         assert "cancelled" in pair.reason.lower()
 
@@ -290,7 +290,7 @@ class TestSyncEngine:
             entry=datetime.now(),
         )
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="CANCELLED")
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         assert pair.action == SyncAction.SKIP
         assert "both deleted" in pair.reason.lower()
 
@@ -303,7 +303,7 @@ class TestSyncEngine:
             entry=datetime.now(),
         )
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         assert pair.action == SyncAction.DELETE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
@@ -325,7 +325,7 @@ class TestSyncEngine:
             entry=datetime.now(),
         )
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
-        pair = engine._classify_task_pair(tw_task, caldav_todo)
+        pair = engine.classifier.classify(tw_task, caldav_todo)
         assert pair.action == SyncAction.SKIP
         assert "deletion disabled" in pair.reason.lower()
 
@@ -338,7 +338,7 @@ class TestSyncEngine:
             entry=datetime.now(),
         )
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="CANCELLED")
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         assert pair.action == SyncAction.DELETE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
 
@@ -357,7 +357,7 @@ class TestSyncEngine:
             summary="Old",
             status="NEEDS-ACTION",
         )
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         assert pair.action == SyncAction.UPDATE
         assert pair.direction == SyncDirection.TW_TO_CALDAV
 
@@ -377,7 +377,7 @@ class TestSyncEngine:
             status="NEEDS-ACTION",
             last_modified=now,
         )
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         # Content is identical, so skip despite timestamp difference
         assert pair.action == SyncAction.SKIP
         assert "content identical" in pair.reason.lower()
@@ -398,7 +398,7 @@ class TestSyncEngine:
             last_modified=None,
             created=None,
         )
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         # Content is identical, so skip despite missing timestamps
         assert pair.action == SyncAction.SKIP
         assert "content identical" in pair.reason.lower()
@@ -419,7 +419,7 @@ class TestSyncEngine:
             status="NEEDS-ACTION",
             last_modified=now,
         )
-        pair = sync_engine._classify_task_pair(tw_task, caldav_todo)
+        pair = sync_engine.classifier.classify(tw_task, caldav_todo)
         # Content differs, CalDAV more recent - update TW from CalDAV
         assert pair.action == SyncAction.UPDATE
         assert pair.direction == SyncDirection.CALDAV_TO_TW
