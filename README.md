@@ -8,11 +8,11 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 
 > [!WARNING]
 >
-> This project was completely coded by an AI agent. A human was involved to
-> describe the project, to make implementation and behaviour decisions, to
-> define what tests should be performed, detected and pointed mistakes, and a
-> few other things. However, as of now, human did **NOT** write or correct a
-> single line of code directly. What a time to be alive.
+> This project was completely coded by an AI agent. A human was involved in
+> describing the project, making implementation and behavior decisions, defining
+> required tests, and spotting errors, among other things. However, so far, the
+> human has NOT written or corrected a single line of code directly. What a time
+> to be alive.
 >
 > Also, this program may destroy your data (not because it was made by robots).
 > Always use `--dry-run` before sync'ing anything important.
