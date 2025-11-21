@@ -166,6 +166,24 @@ The project uses GitHub Actions for automated testing:
 
 Every push and pull request triggers the full test suite.
 
+## Alternatives
+
+Similar projects you might want to consider:
+
+- [syncall](https://github.com/bergercookie/syncall) - Bidirectional
+  synchronization between taskwarrior, Google Calendar, Notion, Asana, and more
+- [caldavwarrior](https://gitlab.com/BlackEdder/caldavwarrior) - Synchronize
+  TaskWarrior with CalDAV servers
+- [calwarrior](https://github.com/erikh/calwarrior) - CalDAV to TaskWarrior sync
+  utility
+
+## Roadmap
+
+Future improvements planned:
+
+- [ ] Task dependency synchronization
+- [ ] Task scheduled/start time mapping
+
 ## License
 
 MIT License - see LICENSE file for details
