@@ -96,6 +96,8 @@ def create_task(description: str, taskdata: str | None = None, **kwargs) -> dict
         args.append(f"due:{kwargs['due']}")
     if "scheduled" in kwargs:
         args.append(f"scheduled:{kwargs['scheduled']}")
+    if "wait" in kwargs:
+        args.append(f"wait:{kwargs['wait']}")
     if "priority" in kwargs:
         args.append(f"priority:{kwargs['priority']}")
     if "tags" in kwargs:
@@ -308,6 +310,8 @@ def create_todo(calendar: caldav.Calendar, summary: str, **kwargs) -> bool:
             todo.add("due", kwargs["due"])
         if "dtstart" in kwargs:
             todo.add("dtstart", kwargs["dtstart"])
+        if "wait" in kwargs:
+            todo.add("X-TASKWARRIOR-WAIT", kwargs["wait"])
         if "priority" in kwargs:
             todo.add("priority", kwargs["priority"])
         if "description" in kwargs:

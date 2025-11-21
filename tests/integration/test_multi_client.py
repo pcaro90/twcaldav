@@ -96,6 +96,29 @@ def test_multi_client_create_with_priority(
 
 
 @pytest.mark.integration
+def test_multi_client_create_with_wait(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Task with wait date created in client1 syncs to client2."""
+    client1, client2 = multi_client_setup
+
+    # Client 1: Create task with wait date (using yesterday so task stays pending)
+    description = "Multi-client task with wait date"
+    task1 = create_task(description, taskdata=client1, wait="yesterday")
+    assert task1 is not None
+    assert "wait" in task1
+
+    # Sync both ways
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Verify task in Client 2 has wait date
+    client2_tasks = get_tasks(taskdata=client2)
+    assert len(client2_tasks) == 1
+    assert "wait" in client2_tasks[0]
+
+
+@pytest.mark.integration
 def test_multi_client_create_with_tags(
     clean_test_environment, multi_client_setup
 ) -> None:
@@ -220,6 +243,41 @@ def test_multi_client_modify_priority(
     client1_tasks = get_tasks(taskdata=client1)
     assert len(client1_tasks) == 1
     assert client1_tasks[0].get("priority") == "H"
+
+
+@pytest.mark.integration
+def test_multi_client_modify_wait_date(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Wait date modified in client2 syncs back to client1."""
+    client1, client2 = multi_client_setup
+
+    # Client 1: Create task with wait date and sync
+    # (using yesterday so task stays pending)
+    description = "Multi-client task with changeable wait date"
+    task1 = create_task(description, taskdata=client1, wait="yesterday")
+    assert task1 is not None
+
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Wait to ensure timestamp separation
+    time.sleep(2)
+
+    # Client 2: Modify wait date (also using past date to keep task pending)
+    client2_tasks = get_tasks(taskdata=client2)
+    assert len(client2_tasks) == 1
+    # Modify to 2 days ago so it's different but still in the past
+    assert modify_task(client2_tasks[0]["uuid"], taskdata=client2, wait="now-2days")
+
+    # Sync back
+    assert run_sync(taskdata=client2)
+    assert run_sync(taskdata=client1)
+
+    # Verify modification in Client 1
+    client1_tasks = get_tasks(taskdata=client1)
+    assert len(client1_tasks) == 1
+    assert "wait" in client1_tasks[0]
 
 
 @pytest.mark.integration

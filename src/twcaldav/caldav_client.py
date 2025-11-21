@@ -22,6 +22,7 @@ class VTodo:
     description: str | None = None
     due: datetime | None = None
     dtstart: datetime | None = None
+    wait: datetime | None = None
     priority: int | None = None
     categories: list[str] | None = None
     created: datetime | None = None
@@ -77,6 +78,30 @@ class VTodo:
         if last_modified and hasattr(last_modified, "dt"):
             last_modified = last_modified.dt
 
+        # Parse wait field (custom X-TASKWARRIOR-WAIT property)
+        wait = todo.get("X-TASKWARRIOR-WAIT")
+        if wait:
+            if hasattr(wait, "dt"):
+                # Property has a dt attribute (date/datetime)
+                wait = wait.dt
+                # Convert to datetime if it's a date
+                if not isinstance(wait, datetime):
+                    from datetime import time
+
+                    wait = datetime.combine(wait, time())
+            elif isinstance(wait, str):
+                # Property is a string, parse it
+                try:
+                    wait_str = str(wait)
+                    if wait_str.endswith("Z"):
+                        wait_str = wait_str[:-1] + "+00:00"
+                    wait = datetime.fromisoformat(wait_str)
+                except (ValueError, AttributeError):
+                    wait = None
+            else:
+                # Unknown type, skip
+                wait = None
+
         # Parse priority (CalDAV uses 1-9, where 1 is highest)
         priority = None
         if todo.get("PRIORITY"):
@@ -106,6 +131,7 @@ class VTodo:
             description=description,
             due=due,
             dtstart=dtstart,
+            wait=wait,
             priority=priority,
             categories=categories,
             created=created,
@@ -130,6 +156,8 @@ class VTodo:
             todo.add("DUE", self.due)
         if self.dtstart:
             todo.add("DTSTART", self.dtstart)
+        if self.wait:
+            todo.add("X-TASKWARRIOR-WAIT", self.wait)
         if self.priority is not None:
             todo.add("PRIORITY", self.priority)
         if self.categories:

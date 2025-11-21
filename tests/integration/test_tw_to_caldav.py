@@ -96,6 +96,30 @@ def test_tw_to_caldav_create_with_scheduled(clean_test_environment) -> None:
 
 
 @pytest.mark.integration
+def test_tw_to_caldav_create_with_wait(clean_test_environment) -> None:
+    """Create task with wait date in TaskWarrior, verify it syncs to CalDAV."""
+    # Create task with wait date (using yesterday so task stays pending, not waiting)
+    description = "TaskWarrior task with wait date"
+    task = create_task(description, wait="yesterday")
+    assert task is not None
+    assert "wait" in task
+
+    # Run sync
+    assert run_sync()
+
+    # Verify todo has X-TASKWARRIOR-WAIT in CalDAV
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    wait_prop = get_todo_property(todo, "x-taskwarrior-wait")
+    assert wait_prop is not None
+
+
+@pytest.mark.integration
 def test_tw_to_caldav_create_with_priority(clean_test_environment) -> None:
     """Create task with priority in TaskWarrior, verify it syncs to CalDAV."""
     # Create task with high priority

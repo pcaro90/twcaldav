@@ -99,6 +99,7 @@ def taskwarrior_to_caldav(task: Task) -> VTodo:
         description=description,
         due=task.due,
         dtstart=task.scheduled,
+        wait=task.wait,
         priority=priority,
         categories=categories,
         created=task.entry,
@@ -178,6 +179,7 @@ def caldav_to_taskwarrior(vtodo: VTodo, existing_task: Task | None = None) -> Ta
         project=None,  # Project will be set by sync engine based on calendar mapping
         due=vtodo.due,
         scheduled=vtodo.dtstart,
+        wait=vtodo.wait,
         priority=priority,
         tags=tags if tags else None,
         annotations=annotations if annotations else None,

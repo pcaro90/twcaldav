@@ -168,6 +168,34 @@ class TestTaskWarriorToCalDAV:
 
         assert vtodo.dtstart is None
 
+    def test_wait_to_x_taskwarrior_wait(self) -> None:
+        """Test wait field is mapped to X-TASKWARRIOR-WAIT."""
+        task = Task(
+            uuid="test-uuid",
+            description="Task with wait date",
+            status="pending",
+            entry=datetime(2024, 11, 17, 10, 0, 0, tzinfo=UTC),
+            wait=datetime(2024, 11, 25, 8, 0, 0, tzinfo=UTC),
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.wait == datetime(2024, 11, 25, 8, 0, 0, tzinfo=UTC)
+
+    def test_wait_none_maps_to_no_x_taskwarrior_wait(self) -> None:
+        """Test None wait does not set X-TASKWARRIOR-WAIT."""
+        task = Task(
+            uuid="test-uuid",
+            description="Task without wait",
+            status="pending",
+            entry=datetime.now(UTC),
+            wait=None,
+        )
+
+        vtodo = taskwarrior_to_caldav(task)
+
+        assert vtodo.wait is None
+
 
 class TestCalDAVToTaskWarrior:
     """Tests for CalDAV to TaskWarrior conversion."""
@@ -348,6 +376,32 @@ class TestCalDAVToTaskWarrior:
         task = caldav_to_taskwarrior(vtodo)
 
         assert task.scheduled is None
+
+    def test_x_taskwarrior_wait_to_wait(self) -> None:
+        """Test X-TASKWARRIOR-WAIT is mapped to wait field."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Task with wait date",
+            created=datetime.now(UTC),
+            wait=datetime(2024, 11, 25, 8, 0, 0, tzinfo=UTC),
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.wait == datetime(2024, 11, 25, 8, 0, 0, tzinfo=UTC)
+
+    def test_x_taskwarrior_wait_none_maps_to_no_wait(self) -> None:
+        """Test None X-TASKWARRIOR-WAIT does not set wait."""
+        vtodo = VTodo(
+            uid="test-uid",
+            summary="Task without wait date",
+            created=datetime.now(UTC),
+            wait=None,
+        )
+
+        task = caldav_to_taskwarrior(vtodo)
+
+        assert task.wait is None
 
     def test_round_trip_conversion(self) -> None:
         """Test converting back and forth preserves data."""

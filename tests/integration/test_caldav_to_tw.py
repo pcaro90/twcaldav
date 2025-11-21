@@ -88,6 +88,30 @@ def test_caldav_to_tw_create_with_dtstart(clean_test_environment) -> None:
 
 
 @pytest.mark.integration
+def test_caldav_to_tw_create_with_wait(clean_test_environment) -> None:
+    """Create todo with X-TASKWARRIOR-WAIT in CalDAV, verify it syncs to TaskWarrior."""
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create todo with wait date in the past (so task stays pending, not waiting)
+    summary = "CalDAV todo with wait date"
+    wait_date = datetime.now(UTC) - timedelta(days=1)
+    assert create_todo(calendar, summary, wait=wait_date)
+
+    # Run sync
+    assert run_sync()
+
+    # Verify task has correct wait date
+    tasks = get_tasks()
+    assert len(tasks) == 1
+    assert tasks[0]["description"] == summary
+    assert "wait" in tasks[0]
+
+
+@pytest.mark.integration
 def test_caldav_to_tw_create_with_priority(clean_test_environment) -> None:
     """Create todo with priority in CalDAV, verify it syncs to TaskWarrior."""
     # Get CalDAV client

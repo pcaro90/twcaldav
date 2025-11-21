@@ -139,6 +139,7 @@ systemctl --user enable --now twcaldav.timer
 | status           | STATUS (pending→NEEDS-ACTION, completed→COMPLETED) |
 | due              | DUE                                                |
 | scheduled        | DTSTART (start date/time)                          |
+| wait             | X-TASKWARRIOR-WAIT (custom property)               |
 | priority         | PRIORITY (H→1, M→5, L→9)                           |
 | project          | CATEGORIES                                         |
 | tags             | CATEGORIES                                         |

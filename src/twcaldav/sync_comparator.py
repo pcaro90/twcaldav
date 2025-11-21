@@ -68,6 +68,13 @@ class TaskComparator:
             )
             return False
 
+        # Compare wait (handle None and timezone differences)
+        tw_wait = tw_task.wait.replace(tzinfo=None) if tw_task.wait else None
+        cd_wait = caldav_todo.wait.replace(tzinfo=None) if caldav_todo.wait else None
+        if tw_wait != cd_wait:
+            self.logger.debug(f"Content differs: wait - TW:{tw_wait} vs CD:{cd_wait}")
+            return False
+
         # Compare priority
         priority_map = {"H": 1, "M": 5, "L": 9}
         expected_caldav_priority = (
