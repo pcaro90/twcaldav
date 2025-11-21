@@ -16,6 +16,7 @@ htmlcov/
 coverage.xml
 *.log
 test-results.xml
+unit-test-results.xml
 
 # Docker volumes
 .docker-volumes/

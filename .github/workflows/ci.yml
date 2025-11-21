@@ -50,13 +50,32 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run unit tests
-        run: uv run pytest tests/ -v --ignore=tests/integration --cov=src/twcaldav --cov-report=xml --cov-report=term
+        run: uv run pytest tests/ -v --ignore=tests/integration --cov=src/twcaldav --cov-report=xml --cov-report=term --junit-xml=unit-test-results.xml
+
+      - name: Publish Unit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: unit-test-results.xml
+          check_name: Unit Test Results
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: github.event_name == 'push'
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@v5
+        if: always()
+        with:
+          files: unit-test-results.xml
+          flags: unittests
+          report_type: test_results
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -75,19 +94,20 @@ jobs:
       - name: Run integration tests with Docker Compose
         run: bash scripts/run-integration-tests.sh
 
-      - name: Upload test results
+      - name: Publish Integration Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: integration-test-results
-          path: test-results.xml
-          if-no-files-found: warn
+          files: test-results.xml
+          check_name: Integration Test Results
 
-      - name: Upload test artifacts
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@v5
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: integration-test-logs
-          path: |
-            *.log
-          if-no-files-found: ignore
+          files: test-results.xml
+          flags: integration
+          report_type: test_results
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
