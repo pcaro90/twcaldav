@@ -24,10 +24,8 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 - **No sync database** - CalDAV UID is stored as a TaskWarrior
   [UDA](https://taskwarrior.org/docs/udas/), so there is no need for an
   intermediate sync database.
-- 🖥️ **Multi-Client Support** - Sync the same CalDAV server from multiple
-  computers. The CalDAV server is agnostic to the sync, so it works well with
-  other clients. Also, multiple TaskWarrior instances can sync against the same
-  CalDAV server.
+- 🖥️ **Multi-Client Support** - Multiple TaskWarrior instances can sync against
+  the same CalDAV server.
 - 🎯 **Project Mapping** - One TaskWarrior project is mapped to one CalDAV
   calendar.
 - 🔍 **LWW Sync** - Timestamp-based conflict resolution. Last Write Wins.
@@ -37,15 +35,24 @@ Bidirectional synchronization between TaskWarrior and CalDAV servers.
 
 ## Installation
 
-### Using uv (Recommended)
+### Using uv
 
 ```bash
-# Clone the repository
-git clone https://github.com/pcaro90/twcaldav.git
-cd twcaldav
+uv tool install git+https://github.com/pcaro90/twcaldav
+twcaldav --version
+```
 
-# Run the tool
-uv run twcaldav
+### Using pipx
+
+```bash
+pipx install git+https://github.com/pcaro90/twcaldav
+twcaldav --version
+```
+
+### Run using uvx (without installing)
+
+```bash
+uvx --from git+https://github.com/pcaro90/twcaldav.git twcaldav --version
 ```
 
 ## Quick Start
@@ -72,13 +79,13 @@ starting point. All options should be clear enough.
 
 ```bash
 # Test CalDAV connection
-uv run twcaldav test-caldav
+twcaldav test-caldav
 
 # Dry run sync (preview changes)
-uv run twcaldav sync --dry-run --verbose
+twcaldav sync --dry-run --verbose
 
 # Sync everything
-uv run twcaldav sync --verbose
+twcaldav sync --verbose
 ```
 
 ### 4. Create an Automated Sync (Cron Job)
@@ -89,11 +96,11 @@ To sync automatically every hour:
 # Edit crontab
 crontab -e
 
-# Add this line (adjust path to uv and project):
-0 * * * * cd /path/to/twcaldav && /path/to/uv run twcaldav sync >> /var/log/twcaldav.log 2>&1
+# Add this line (adjust path depending on the install method):
+0 * * * * /path/to/twcaldav sync >> /var/log/twcaldav.log 2>&1
 ```
 
-Or use a systemd timer for more control:
+Or use a systemd timer:
 
 ```ini
 # ~/.config/systemd/user/twcaldav.service
@@ -102,7 +109,7 @@ Description=TaskWarrior CalDAV Sync
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/uv run --directory /path/to/twcaldav twcaldav sync
+ExecStart=/path/to/twcaldav sync
 
 # ~/.config/systemd/user/twcaldav.timer
 [Unit]
@@ -138,7 +145,7 @@ systemctl --user enable --now twcaldav.timer
 ## Testing
 
 The project has comprehensive test coverage, both as unit tests, and end-to-end
-integration tests with a real CalDAV + TaskWarrior environment.
+integration tests with a real CalDAV + TaskWarrior environment (Docker-based).
 
 ```bash
 # Run unit tests
@@ -147,8 +154,6 @@ uv run pytest -v
 # Run integration tests (requires Docker)
 ./scripts/run-integration-tests.sh
 ```
-
-See [TESTING_QUICKSTART.md](TESTING_QUICKSTART.md) for more details.
 
 ## CI/CD
 
