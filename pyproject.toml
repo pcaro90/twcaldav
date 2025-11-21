@@ -1,6 +1,6 @@
 [project]
 name = "twcaldav"
-version = "0.1.0"
+version = "1.0.0"
 description = "Bidirectional synchronization between TaskWarrior and CalDAV servers"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -78,8 +78,8 @@ addopts = "-v"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-tag_format = "$version"
+tag_format = "v$version"
 version_scheme = "pep440"
 version_provider = "uv"
 update_changelog_on_bump = true
-major_version_zero = true
+version_files = ["src/twcaldav/__init__.py"]
