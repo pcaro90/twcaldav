@@ -380,6 +380,15 @@ class SyncEngine:
 
         # Allow small time difference (1 second) to avoid ping-pong
         time_diff = abs((tw_timestamp - caldav_timestamp).total_seconds())
+
+        # Log timestamp comparisons for debugging
+        if time_diff > 1:
+            self.logger.debug(
+                f"Timestamp comparison - TW:{tw_timestamp.isoformat()} "
+                f"CD:{caldav_timestamp.isoformat()} "
+                f"diff:{time_diff}s"
+            )
+
         if time_diff <= 1:
             return TaskPair(
                 tw_task=tw_task,
