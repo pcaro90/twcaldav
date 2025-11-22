@@ -1,3 +1,10 @@
+## v1.1.0 (2025-11-22)
+
+### Feat
+
+- add TaskWarrior end ↔ CalDAV COMPLETED field mapping
+- add TaskWarrior wait ↔ CalDAV X-TASKWARRIOR-WAIT field mapping
+
 ## v1.0.0 (2025-11-22)
 
 ### Feat
