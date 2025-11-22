@@ -1,4 +1,4 @@
-name: CI
+name: Tests
 
 permissions:
   checks: write
@@ -9,6 +9,7 @@ on:
     branches: [main, master, develop]
   pull_request:
     branches: [main, master, develop]
+  workflow_call:  # Allow this workflow to be called by other workflows
 
 jobs:
   lint:
