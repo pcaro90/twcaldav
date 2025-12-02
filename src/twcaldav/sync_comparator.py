@@ -84,11 +84,22 @@ class TaskComparator:
                 if caldav_todo.completed
                 else None
             )
-            if tw_end != cd_completed:
+            # Only consider it a difference if BOTH have completion timestamps
+            # If CalDAV lacks the COMPLETED timestamp, the status already indicates
+            # completion, so don't treat this as a content difference
+            if tw_end is not None and cd_completed is not None:
+                if tw_end != cd_completed:
+                    self.logger.debug(
+                        f"Content differs: end/completed - "
+                        f"TW:{tw_end} vs CD:{cd_completed}"
+                    )
+                    return False
+            # If only one side has the timestamp, log but don't treat as difference
+            elif tw_end != cd_completed:
                 self.logger.debug(
-                    f"Content differs: end/completed - TW:{tw_end} vs CD:{cd_completed}"
+                    f"Ignoring end/completed mismatch (missing timestamp): "
+                    f"TW:{tw_end} vs CD:{cd_completed}"
                 )
-                return False
 
         # Compare priority
         priority_map = {"H": 1, "M": 5, "L": 9}

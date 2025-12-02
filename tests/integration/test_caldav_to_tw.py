@@ -676,3 +676,51 @@ def test_caldav_to_tw_dry_run(clean_test_environment) -> None:
     # Verify TaskWarrior didn't change
     tasks_after = len(get_tasks())
     assert tasks_after == 0
+
+
+@pytest.mark.integration
+def test_caldav_to_tw_completed_without_timestamp_idempotent(
+    clean_test_environment,
+) -> None:
+    """Sync completed todo WITHOUT COMPLETED timestamp, verify sync is idempotent.
+
+    This tests the scenario where CalDAV has a completed task but lacks the
+    COMPLETED timestamp property. After initial sync to TW, subsequent syncs
+    should NOT trigger spurious updates.
+
+    This was a bug where the comparator would detect a difference between
+    TW's end timestamp and CalDAV's missing COMPLETED, causing infinite
+    update loops.
+    """
+    # Create completed todo WITHOUT completed timestamp
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    summary = "Completed task without timestamp"
+    # status="COMPLETED" but NO completed=datetime parameter
+    assert create_todo(calendar, summary, status="COMPLETED")
+
+    # First sync
+    assert run_sync()
+
+    # Get TW task state after first sync
+    tasks = get_tasks(project="test", status=None)
+    completed_tasks = [t for t in tasks if t["description"] == summary]
+    assert len(completed_tasks) == 1
+    first_modified = completed_tasks[0]["modified"]
+
+    # Wait to ensure timestamp separation
+    time.sleep(2)
+
+    # Second sync - should NOT modify the task
+    assert run_sync()
+
+    # Verify task was NOT modified
+    tasks = get_tasks(project="test", status=None)
+    completed_tasks = [t for t in tasks if t["description"] == summary]
+    assert len(completed_tasks) == 1
+    assert completed_tasks[0]["modified"] == first_modified, (
+        "Task was spuriously updated on second sync"
+    )

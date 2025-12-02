@@ -628,3 +628,42 @@ def test_tw_to_caldav_annotation_bidirectional_no_duplication(
     assert "annotations" in tasks[0]
     assert len(tasks[0]["annotations"]) == 1
     assert tasks[0]["annotations"][0]["description"] == annotation
+
+
+@pytest.mark.integration
+def test_tw_to_caldav_completed_syncs_completed_timestamp(
+    clean_test_environment,
+) -> None:
+    """Verify that completing a TW task syncs the COMPLETED timestamp to CalDAV.
+
+    This ensures that when TW completes a task, the end timestamp is properly
+    synced as the CalDAV COMPLETED property.
+    """
+    # Create pending task
+    description = "Task to complete for timestamp sync"
+    task = create_task(description)
+    assert task is not None
+
+    # Sync to CalDAV
+    assert run_sync()
+
+    # Complete the task in TW
+    time.sleep(1)
+    assert complete_task(task["uuid"])
+
+    # Sync to CalDAV
+    assert run_sync()
+
+    # Verify CalDAV has COMPLETED property
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+
+    completed_prop = get_todo_property(todo, "completed")
+    assert completed_prop is not None, "COMPLETED timestamp not synced to CalDAV"
+    status_prop = get_todo_property(todo, "status")
+    assert status_prop == "COMPLETED"

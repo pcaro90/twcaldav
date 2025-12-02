@@ -739,3 +739,112 @@ def test_multi_client_no_spurious_updates(
     assert client2_tasks_after[0]["modified"] == client2_tasks_before[0]["modified"], (
         "Client 2 task was modified"
     )
+
+
+@pytest.mark.integration
+def test_multi_client_completed_without_timestamp_roundtrip(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Test roundtrip sync of completed task that starts without COMPLETED timestamp.
+
+    Scenario:
+    1. CalDAV has completed task without COMPLETED timestamp
+    2. Client1 syncs (gets task from CalDAV)
+    3. Client2 syncs (gets task from CalDAV)
+    4. Multiple subsequent syncs should not cause spurious updates
+
+    This tests the fix for the bug where CalDAV todos with COMPLETED status
+    but no COMPLETED timestamp would cause infinite sync loops.
+    """
+    client1, client2 = multi_client_setup
+
+    # Create completed todo in CalDAV without COMPLETED timestamp
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    summary = "Multi-client completed without timestamp"
+    from tests.integration.helpers import create_todo
+
+    assert create_todo(calendar, summary, status="COMPLETED")
+
+    # Both clients sync
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Get initial state
+    c1_tasks = get_tasks(taskdata=client1, project="test", status=None)
+    c2_tasks = get_tasks(taskdata=client2, project="test", status=None)
+    c1_task = next((t for t in c1_tasks if summary in t["description"]), None)
+    c2_task = next((t for t in c2_tasks if summary in t["description"]), None)
+    assert c1_task is not None, "Task not synced to Client 1"
+    assert c2_task is not None, "Task not synced to Client 2"
+    c1_modified = c1_task["modified"]
+    c2_modified = c2_task["modified"]
+
+    # Wait and sync again - should NOT modify
+    time.sleep(2)
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Verify no spurious updates
+    c1_tasks = get_tasks(taskdata=client1, project="test", status=None)
+    c2_tasks = get_tasks(taskdata=client2, project="test", status=None)
+    c1_task = next((t for t in c1_tasks if summary in t["description"]), None)
+    c2_task = next((t for t in c2_tasks if summary in t["description"]), None)
+    assert c1_task is not None, "Task disappeared from Client 1"
+    assert c2_task is not None, "Task disappeared from Client 2"
+    assert c1_task["modified"] == c1_modified, "Client1 task spuriously updated"
+    assert c2_task["modified"] == c2_modified, "Client2 task spuriously updated"
+
+
+@pytest.mark.integration
+def test_multi_client_completed_no_spurious_updates(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Test that completed tasks don't cause spurious updates in multi-client sync.
+
+    Scenario:
+    1. Client1 creates and completes a task
+    2. Syncs to CalDAV (with COMPLETED timestamp)
+    3. Client2 syncs (receives task)
+    4. Multiple subsequent syncs should not cause spurious updates
+    """
+    client1, client2 = multi_client_setup
+
+    # Client1: Create and complete task
+    description = "Multi-client completed task sync test"
+    task = create_task(description, taskdata=client1)
+    assert task is not None
+    assert complete_task(task["uuid"], taskdata=client1)
+
+    # Sync both clients
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+
+    # Get initial state
+    c1_task = get_task(task["uuid"], taskdata=client1)
+    c2_tasks = get_tasks(taskdata=client2, project="test", status=None)
+    c2_task = next((t for t in c2_tasks if description in t["description"]), None)
+    assert c1_task is not None, "Task not found in Client 1"
+    assert c2_task is not None, "Task not synced to Client 2"
+    c1_modified = c1_task["modified"]
+    c2_modified = c2_task["modified"]
+
+    # Wait and sync again - should NOT modify
+    time.sleep(3)
+    assert run_sync(taskdata=client1)
+    assert run_sync(taskdata=client2)
+    assert run_sync(taskdata=client1)  # Third sync to ensure stability
+
+    # Verify no spurious updates
+    c1_task_after = get_task(task["uuid"], taskdata=client1)
+    c2_tasks_after = get_tasks(taskdata=client2, project="test", status=None)
+    c2_task_after = next(
+        (t for t in c2_tasks_after if description in t["description"]), None
+    )
+    assert c1_task_after is not None, "Task disappeared from Client 1"
+    assert c2_task_after is not None, "Task disappeared from Client 2"
+    assert c1_task_after["modified"] == c1_modified, "Client1 task spuriously updated"
+    assert c2_task_after["modified"] == c2_modified, "Client2 task spuriously updated"
