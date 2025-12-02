@@ -1,3 +1,9 @@
+## v1.2.0 (2025-12-02)
+
+### Feat
+
+- change status sync behaviour when `delete_tasks` is False
+
 ## v1.1.2 (2025-12-02)
 
 ### Fix
