@@ -724,3 +724,150 @@ def test_caldav_to_tw_completed_without_timestamp_idempotent(
     assert completed_tasks[0]["modified"] == first_modified, (
         "Task was spuriously updated on second sync"
     )
+
+
+@pytest.mark.integration
+def test_caldav_to_tw_delete_disabled(clean_test_environment) -> None:
+    """Delete todo in CalDAV with delete_tasks=False, verify TW task preserved.
+
+    When deletion is disabled, deleting a CalDAV todo should NOT delete the
+    corresponding TaskWarrior task.
+    """
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create and sync todo
+    summary = "CalDAV todo to delete (deletion disabled)"
+    assert create_todo(calendar, summary)
+    assert run_sync()
+
+    # Verify initial sync
+    tasks = get_tasks()
+    assert len(tasks) == 1
+    task_uuid = tasks[0]["uuid"]
+
+    # Delete todo in CalDAV
+    todo = find_todo_by_summary(calendar, summary)
+    assert todo is not None
+    todo.delete()
+
+    # Run sync with delete_tasks=False
+    assert run_sync(delete_tasks=False)
+
+    # Verify TaskWarrior task is NOT deleted
+    tasks = get_tasks()
+    assert len(tasks) == 1, "TW task should be preserved when deletion is disabled"
+    assert tasks[0]["uuid"] == task_uuid
+
+
+@pytest.mark.integration
+def test_caldav_to_tw_cancelled_status_delete_enabled(clean_test_environment) -> None:
+    """Set CalDAV todo to CANCELLED status, verify TW task deleted.
+
+    When a CalDAV todo is set to CANCELLED status (not deleted), the sync
+    should delete the corresponding TaskWarrior task if deletion is enabled.
+    """
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create and sync todo
+    summary = "CalDAV todo to be cancelled"
+    assert create_todo(calendar, summary, status="NEEDS-ACTION")
+    assert run_sync()
+
+    # Verify initial sync
+    tasks = get_tasks()
+    assert len(tasks) == 1
+    task_uuid = tasks[0]["uuid"]
+
+    # Wait for timestamp separation
+    time.sleep(2)
+
+    # Set todo to CANCELLED status (not delete it)
+    todo = find_todo_by_summary(calendar, summary)
+    assert todo is not None
+    assert modify_todo(todo, status="CANCELLED")
+
+    # Run sync with delete_tasks=True
+    assert run_sync(delete_tasks=True)
+
+    # Verify TaskWarrior task is deleted
+    tasks = get_tasks()
+    assert len(tasks) == 0 or all(t["uuid"] != task_uuid for t in tasks), (
+        "TW task should be deleted when CalDAV todo is CANCELLED"
+    )
+
+
+@pytest.mark.integration
+def test_caldav_to_tw_cancelled_status_delete_disabled(clean_test_environment) -> None:
+    """Set CalDAV todo to CANCELLED status with delete_tasks=False, verify TW preserved.
+
+    When deletion is disabled, a CANCELLED CalDAV todo should NOT cause the
+    corresponding TaskWarrior task to be deleted.
+    """
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create and sync todo
+    summary = "CalDAV todo cancelled (deletion disabled)"
+    assert create_todo(calendar, summary, status="NEEDS-ACTION")
+    assert run_sync()
+
+    # Verify initial sync
+    tasks = get_tasks()
+    assert len(tasks) == 1
+    task_uuid = tasks[0]["uuid"]
+
+    # Wait for timestamp separation
+    time.sleep(2)
+
+    # Set todo to CANCELLED status
+    todo = find_todo_by_summary(calendar, summary)
+    assert todo is not None
+    assert modify_todo(todo, status="CANCELLED")
+
+    # Run sync with delete_tasks=False
+    assert run_sync(delete_tasks=False)
+
+    # Verify TaskWarrior task is NOT deleted
+    tasks = get_tasks()
+    assert len(tasks) == 1, "TW task should be preserved when deletion is disabled"
+    assert tasks[0]["uuid"] == task_uuid
+
+
+@pytest.mark.integration
+def test_caldav_to_tw_cancelled_no_tw_task(clean_test_environment) -> None:
+    """Create CANCELLED CalDAV todo without TW counterpart, verify it's skipped.
+
+    A CalDAV todo with CANCELLED status that has no corresponding TaskWarrior
+    task should be skipped (not create a new deleted task).
+    """
+    # Get CalDAV client
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    # Create CANCELLED todo directly (never synced)
+    summary = "Orphaned cancelled CalDAV todo"
+    assert create_todo(calendar, summary, status="CANCELLED")
+
+    # Verify no TW tasks exist
+    tasks = get_tasks()
+    assert len(tasks) == 0
+
+    # Run sync
+    assert run_sync()
+
+    # Verify no TW task was created
+    tasks = get_tasks()
+    assert len(tasks) == 0, "Orphaned CANCELLED todo should not create TW task"

@@ -429,6 +429,54 @@ class CalDAVClient:
                 f"Failed to delete todo from calendar '{calendar_id}': {e}"
             ) from e
 
+    def cancel_todo(self, calendar_id: str, uid: str) -> None:
+        """Cancel a todo by setting its status to CANCELLED.
+
+        This is a soft-delete operation that marks the todo as cancelled
+        rather than permanently removing it.
+
+        Args:
+            calendar_id: Name of calendar.
+            uid: UID of todo to cancel.
+
+        Raises:
+            CalDAVError: If cancellation fails.
+        """
+        try:
+            calendar = self.get_calendar(calendar_id)
+
+            # Find the existing todo by UID
+            todos = calendar.todos(include_completed=True)
+            for todo in todos:
+                cal = Calendar.from_ical(todo.data)
+                for component in cal.walk():
+                    if component.name == "VTODO" and str(component.get("UID")) == uid:
+                        # Update the status to CANCELLED
+                        if "STATUS" in component:
+                            del component["STATUS"]
+                        component.add("STATUS", "CANCELLED")
+
+                        # Rebuild the calendar with updated component
+                        new_cal = Calendar()
+                        new_cal.add("PRODID", "-//twcaldav//twcaldav//EN")
+                        new_cal.add("VERSION", "2.0")
+                        new_cal.add_component(component)
+
+                        todo.data = new_cal.to_ical()
+                        todo.save()
+                        self.logger.info(
+                            f"Cancelled todo {uid} in calendar '{calendar_id}'"
+                        )
+                        return
+
+            raise CalDAVError(f"Todo not found: {uid}")
+        except CalDAVError:
+            raise
+        except Exception as e:
+            raise CalDAVError(
+                f"Failed to cancel todo in calendar '{calendar_id}': {e}"
+            ) from e
+
     def get_todo_by_uid(self, calendar_id: str, uid: str) -> VTodo | None:
         """Get a specific todo by UID.
 

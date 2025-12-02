@@ -667,3 +667,49 @@ def test_tw_to_caldav_completed_syncs_completed_timestamp(
     assert completed_prop is not None, "COMPLETED timestamp not synced to CalDAV"
     status_prop = get_todo_property(todo, "status")
     assert status_prop == "COMPLETED"
+
+
+@pytest.mark.integration
+def test_tw_to_caldav_delete_disabled(clean_test_environment) -> None:
+    """Delete task in TaskWarrior with delete_tasks=False.
+
+    Verify CalDAV todo is set to CANCELLED status (soft delete).
+    When deletion is disabled, deleting a TW task should set the corresponding
+    CalDAV todo status to CANCELLED (soft delete) instead of removing it.
+    """
+    # Create and sync task
+    description = "TaskWarrior task to delete (deletion disabled)"
+    task = create_task(description)
+    assert task is not None
+    assert run_sync()
+
+    # Verify initial sync
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+
+    todos_before = len(get_todos(calendar))
+    assert todos_before == 1
+
+    # Verify initial status is not CANCELLED
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    initial_status = get_todo_property(todo, "status")
+    assert initial_status != "CANCELLED"
+
+    # Delete task in TaskWarrior
+    assert delete_task(task["uuid"])
+
+    # Run sync with delete_tasks=False
+    assert run_sync(delete_tasks=False)
+
+    # Verify CalDAV todo is NOT deleted but is CANCELLED
+    todos_after = len(get_todos(calendar))
+    assert todos_after == 1, "CalDAV todo should be preserved (as CANCELLED)"
+
+    # Verify the todo has status CANCELLED
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+    status = get_todo_property(todo, "status")
+    assert status == "CANCELLED", f"Expected CANCELLED status, got {status}"

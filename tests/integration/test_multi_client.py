@@ -848,3 +848,64 @@ def test_multi_client_completed_no_spurious_updates(
     assert c2_task_after is not None, "Task disappeared from Client 2"
     assert c1_task_after["modified"] == c1_modified, "Client1 task spuriously updated"
     assert c2_task_after["modified"] == c2_modified, "Client2 task spuriously updated"
+
+
+@pytest.mark.integration
+def test_both_tw_deleted_and_caldav_cancelled(
+    clean_test_environment, multi_client_setup
+) -> None:
+    """Test that when TW task is deleted AND CalDAV todo is CANCELLED, sync skips.
+
+    This edge case tests the scenario where both sides have been marked as
+    deleted/cancelled. The sync should skip without errors.
+    """
+    from tests.integration.helpers import (
+        find_todo_by_summary,
+        get_caldav_client,
+        get_calendar,
+        get_todos,
+        modify_todo,
+    )
+
+    client1, _client2 = multi_client_setup
+
+    # Client 1: Create task and sync
+    description = "Task for both-deleted test"
+    task = create_task(description, taskdata=client1)
+    assert task is not None
+    assert run_sync(taskdata=client1)
+
+    # Verify task exists in CalDAV
+    _, principal = get_caldav_client()
+    assert principal is not None
+    calendar = get_calendar(principal)
+    assert calendar is not None
+    todo = find_todo_by_summary(calendar, description)
+    assert todo is not None
+
+    # Delete task in TaskWarrior
+    assert delete_task(task["uuid"], taskdata=client1)
+
+    # Set CalDAV todo to CANCELLED (simulating deletion on CalDAV side)
+    assert modify_todo(todo, status="CANCELLED")
+
+    # Run sync - should complete without errors, skipping the pair
+    assert run_sync(taskdata=client1, delete_tasks=True)
+
+    # Verify both sides remain in their deleted states
+    # TW task should still be deleted
+    deleted_task = get_task(task["uuid"], taskdata=client1)
+    assert deleted_task is not None
+    assert deleted_task["status"] == "deleted"
+
+    # CalDAV todo should still be CANCELLED
+    from tests.integration.helpers import get_todo_property
+
+    todos = get_todos(calendar)
+    cancelled_todo = None
+    for t in todos:
+        if description in str(t.data):
+            cancelled_todo = t
+            break
+    assert cancelled_todo is not None
+    assert get_todo_property(cancelled_todo, "status") == "CANCELLED"

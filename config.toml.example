@@ -15,8 +15,10 @@ password = "your-password"
 
 # Synchronization behavior
 [sync]
-# Enable deletion of tasks when deleted on either side
-# If false, tasks deleted on one side will NOT be deleted on the other
+# Enable hard deletion of tasks when deleted on either side
+# - true: Tasks deleted on one side will be permanently deleted on the other
+# - false: Tasks deleted in TaskWarrior will set CalDAV todo to CANCELLED status
+#          Tasks deleted/cancelled in CalDAV will NOT be deleted from TaskWarrior
 delete_tasks = false
 
 # Project-Calendar mappings

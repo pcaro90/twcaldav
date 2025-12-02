@@ -310,7 +310,11 @@ class TestSyncEngine:
     def test_classify_tw_deleted_deletion_disabled(
         self, sample_config, mock_tw, mock_caldav
     ) -> None:
-        """Test classification when TW is deleted and deletion is disabled."""
+        """Test classification when TW is deleted and deletion is disabled.
+
+        When delete_tasks=False, a deleted TW task should trigger an UPDATE
+        to set the CalDAV todo to CANCELLED status (soft delete).
+        """
         config = Config(
             caldav=sample_config.caldav,
             mappings=sample_config.mappings,
@@ -326,8 +330,9 @@ class TestSyncEngine:
         )
         caldav_todo = VTodo(uid="cd-123", summary="Test", status="NEEDS-ACTION")
         pair = engine.classifier.classify(tw_task, caldav_todo)
-        assert pair.action == SyncAction.SKIP
-        assert "deletion disabled" in pair.reason.lower()
+        assert pair.action == SyncAction.UPDATE
+        assert pair.direction == SyncDirection.TW_TO_CALDAV
+        assert "cancelled" in pair.reason.lower()
 
     def test_classify_caldav_cancelled_deletion_enabled(self, sync_engine) -> None:
         """Test classification when CalDAV is cancelled and deletion is enabled."""
@@ -625,6 +630,39 @@ class TestSyncEngine:
 
         mock_tw.delete_task.assert_called_once_with("tw-123")
         assert sync_engine.stats.tw_deleted == 1
+
+    def test_execute_cancel_caldav(self, sync_engine, mock_caldav) -> None:
+        """Test executing UPDATE that sets CalDAV todo to CANCELLED.
+
+        When TW task is deleted and delete_tasks=False, the sync should
+        set the CalDAV todo to CANCELLED status instead of deleting it.
+        """
+        tw_task = Task(
+            uuid="tw-123",
+            description="Deleted task",
+            status="deleted",
+            entry=datetime.now(),
+            project="work",
+        )
+        caldav_todo = VTodo(
+            uid="cd-123",
+            summary="Deleted task",
+            status="NEEDS-ACTION",
+        )
+        pair = TaskPair(
+            tw_task=tw_task,
+            caldav_todo=caldav_todo,
+            action=SyncAction.UPDATE,
+            direction=SyncDirection.TW_TO_CALDAV,
+            reason="TaskWarrior task deleted, setting CalDAV to CANCELLED",
+        )
+
+        sync_engine._execute_update(pair)
+
+        # Should call cancel_todo instead of update_todo
+        mock_caldav.cancel_todo.assert_called_once_with("Work Tasks", "cd-123")
+        mock_caldav.update_todo.assert_not_called()
+        assert sync_engine.stats.caldav_updated == 1
 
     def test_dry_run_no_changes(self, sample_config, mock_tw, mock_caldav) -> None:
         """Test that dry-run mode makes no actual changes."""

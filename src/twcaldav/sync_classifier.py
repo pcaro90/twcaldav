@@ -121,9 +121,9 @@ class SyncClassifier:
             return TaskPair(
                 tw_task=tw_task,
                 caldav_todo=caldav_todo,
-                action=SyncAction.SKIP,
-                direction=None,
-                reason="TaskWarrior task deleted, but deletion disabled",
+                action=SyncAction.UPDATE,
+                direction=SyncDirection.TW_TO_CALDAV,
+                reason="TaskWarrior task deleted, setting CalDAV to CANCELLED",
             )
 
         if caldav_todo.status == "CANCELLED" and tw_task.status != "deleted":

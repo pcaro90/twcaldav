@@ -307,6 +307,11 @@ class SyncEngine:
         assert pair.tw_task is not None and pair.caldav_todo is not None
 
         if pair.direction == SyncDirection.TW_TO_CALDAV:
+            # Check if this is a "set CANCELLED" update (TW deleted, delete_tasks=false)
+            if pair.tw_task.status == "deleted":
+                self._execute_cancel_caldav(pair)
+                return
+
             self.logger.info(
                 f"Updating CalDAV todo from TaskWarrior: {pair.tw_task.uuid}"
             )
@@ -361,6 +366,37 @@ class SyncEngine:
                 self.tw.import_tasks([task])
 
             self.stats.tw_updated += 1
+
+    def _execute_cancel_caldav(self, pair: TaskPair) -> None:
+        """Execute cancel action on CalDAV todo (soft delete).
+
+        Called when TW task is deleted but delete_tasks=false.
+        Sets CalDAV todo status to CANCELLED instead of deleting it.
+
+        Args:
+            pair: Task pair with UPDATE action (TW deleted → CalDAV CANCELLED).
+        """
+        assert pair.tw_task is not None and pair.caldav_todo is not None
+
+        self.logger.info(
+            f"Cancelling CalDAV todo (TaskWarrior task deleted): {pair.caldav_todo.uid}"
+        )
+
+        if not self.dry_run:
+            # Get the calendar
+            calendar_name = self.config.get_calendar_for_project(
+                pair.tw_task.project or ""
+            )
+            if not calendar_name:
+                self.logger.warning(
+                    f"No calendar mapping for project: {pair.tw_task.project}"
+                )
+                self.stats.skipped += 1
+                return
+
+            self.caldav.cancel_todo(calendar_name, pair.caldav_todo.uid)
+
+        self.stats.caldav_updated += 1
 
     def _execute_delete(self, pair: TaskPair) -> None:
         """Execute delete action.

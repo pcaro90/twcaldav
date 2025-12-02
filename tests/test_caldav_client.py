@@ -310,3 +310,65 @@ class TestCalDAVClient:
         assert todo is not None
         assert todo.uid == "test-uid-456"
         assert todo.summary == "Task 2"
+
+    @patch("caldav.DAVClient")
+    def test_cancel_todo(self, mock_dav_client) -> None:
+        """Test cancelling a todo (setting status to CANCELLED)."""
+        # Create mock todo with NEEDS-ACTION status
+        todo_component = Todo()
+        todo_component.add("UID", "test-uid-123")
+        todo_component.add("SUMMARY", "Test task")
+        todo_component.add("STATUS", "NEEDS-ACTION")
+
+        cal = Calendar()
+        cal.add_component(todo_component)
+
+        mock_todo = Mock()
+        mock_todo.data = cal.to_ical()
+        mock_todo.save = Mock()
+
+        mock_calendar = Mock()
+        mock_calendar.id = "Work"
+        mock_calendar.todos.return_value = [mock_todo]
+
+        mock_principal = Mock()
+        mock_principal.calendars.return_value = [mock_calendar]
+
+        mock_client_instance = Mock()
+        mock_client_instance.principal.return_value = mock_principal
+        mock_dav_client.return_value = mock_client_instance
+
+        client = CalDAVClient(
+            url="https://caldav.example.com", username="user", password="pass"
+        )
+        client.cancel_todo("Work", "test-uid-123")
+
+        # Verify save was called
+        mock_todo.save.assert_called_once()
+
+        # Verify the updated data has CANCELLED status
+        updated_cal = Calendar.from_ical(mock_todo.data)
+        for component in updated_cal.walk():
+            if component.name == "VTODO":
+                assert str(component.get("STATUS")) == "CANCELLED"
+
+    @patch("caldav.DAVClient")
+    def test_cancel_todo_not_found(self, mock_dav_client) -> None:
+        """Test cancelling a non-existent todo."""
+        mock_calendar = Mock()
+        mock_calendar.id = "Work"
+        mock_calendar.todos.return_value = []
+
+        mock_principal = Mock()
+        mock_principal.calendars.return_value = [mock_calendar]
+
+        mock_client_instance = Mock()
+        mock_client_instance.principal.return_value = mock_principal
+        mock_dav_client.return_value = mock_client_instance
+
+        client = CalDAVClient(
+            url="https://caldav.example.com", username="user", password="pass"
+        )
+
+        with pytest.raises(CalDAVError, match="Todo not found"):
+            client.cancel_todo("Work", "nonexistent-uid")
