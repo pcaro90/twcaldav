@@ -56,6 +56,9 @@ class SyncEngine:
             # Discovery phase
             task_pairs = self._discover_and_correlate()
 
+            # Log sync plan summary
+            self._log_sync_plan(task_pairs)
+
             # Classify and execute sync actions
             for pair in task_pairs:
                 self._execute_sync_action(pair)
@@ -95,7 +98,22 @@ class SyncEngine:
                 if task.caldav_uid:
                     caldav_uid_to_tw_task[task.caldav_uid] = task
 
-        self.logger.info(f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects")
+        # Count tasks by status for clearer logging
+        deleted_without_caldav = sum(
+            1 for t in tw_tasks.values() if t.status == "deleted" and not t.caldav_uid
+        )
+        active_count = len(tw_tasks) - deleted_without_caldav
+
+        if deleted_without_caldav > 0:
+            self.logger.info(
+                f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects "
+                f"({active_count} active, {deleted_without_caldav} deleted "
+                f"without CalDAV link)"
+            )
+        else:
+            self.logger.info(
+                f"Found {len(tw_tasks)} TaskWarrior tasks in mapped projects"
+            )
 
         # Collect all VTODOs from CalDAV in mapped calendars
         caldav_todos: dict[str, VTodo] = {}
@@ -152,6 +170,44 @@ class SyncEngine:
             task_pairs.append(pair)
 
         return task_pairs
+
+    def _log_sync_plan(self, task_pairs: list[TaskPair]) -> None:
+        """Log a summary of planned sync actions.
+
+        Args:
+            task_pairs: List of classified task pairs.
+        """
+        # Count actions by type
+        create_count = sum(1 for p in task_pairs if p.action == SyncAction.CREATE)
+        update_count = sum(1 for p in task_pairs if p.action == SyncAction.UPDATE)
+        delete_count = sum(1 for p in task_pairs if p.action == SyncAction.DELETE)
+        skip_count = sum(1 for p in task_pairs if p.action == SyncAction.SKIP)
+
+        # Count skip reasons for more detail
+        skip_reasons: dict[str, int] = {}
+        for pair in task_pairs:
+            if pair.action == SyncAction.SKIP:
+                reason = pair.reason
+                skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+
+        # Build sync plan message
+        plan_parts = []
+        if create_count > 0:
+            plan_parts.append(f"{create_count} create")
+        if update_count > 0:
+            plan_parts.append(f"{update_count} update")
+        if delete_count > 0:
+            plan_parts.append(f"{delete_count} delete")
+        if skip_count > 0:
+            plan_parts.append(f"{skip_count} skip")
+
+        if plan_parts:
+            self.logger.info(f"Sync plan: {', '.join(plan_parts)}")
+
+        # Log skip reason breakdown at debug level
+        if skip_reasons:
+            for reason, count in sorted(skip_reasons.items()):
+                self.logger.debug(f"  Skip reason: {reason} ({count})")
 
     def _execute_sync_action(self, pair: TaskPair) -> None:
         """Execute the sync action for a task pair.
